@@ -1,0 +1,30 @@
+[package]
+name = "power-poc-dishonest-prover"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "poc"
+path = "src/main.rs"
+
+[[bin]]
+name = "poc_f4_minijinja"
+path = "src/bin/poc_f4_minijinja.rs"
+
+[[bin]]
+name = "poc_f8_chain_unbound"
+path = "src/bin/poc_f8_chain_unbound.rs"
+
+[[bin]]
+name = "poc_f2_hardware_verifier_none"
+path = "src/bin/poc_f2_hardware_verifier_none.rs"
+
+[dependencies]
+a3s-power = { path = "../Power", default-features = false }
+chrono = "0.4"
+hex = "0.4"
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["macros", "rt"] }
+tempfile = "3"

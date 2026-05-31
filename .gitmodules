@@ -1,0 +1,30 @@
+[submodule "tee_attest/EphemeralML"]
+	path = tee_attest/EphemeralML
+	url = https://github.com/cyntrisec/EphemeralML.git
+[submodule "tee_attest/Power"]
+	path = tee_attest/Power
+	url = https://github.com/A3S-Lab/Power.git
+[submodule "tee_attest/laminator"]
+	path = tee_attest/laminator
+	url = https://github.com/ssg-research/laminator.git
+[submodule "tee_attest/nearai-cloud-verifier"]
+	path = tee_attest/nearai-cloud-verifier
+	url = https://github.com/nearai/nearai-cloud-verifier.git
+[submodule "tee_attest/tinfoil/confidential-model-router"]
+	path = tee_attest/tinfoil/confidential-model-router
+	url = https://github.com/tinfoilsh/confidential-model-router.git
+[submodule "tee_attest/tinfoil/verifiable-reviewer"]
+	path = tee_attest/tinfoil/verifiable-reviewer
+	url = https://github.com/tinfoilsh/verifiable-reviewer.git
+[submodule "tee_attest/tinfoil/tinfoil-python"]
+	path = tee_attest/tinfoil/tinfoil-python
+	url = https://github.com/tinfoilsh/tinfoil-python.git
+[submodule "tee_attest/tinfoil/tinfoil-go"]
+	path = tee_attest/tinfoil/tinfoil-go
+	url = https://github.com/tinfoilsh/tinfoil-go.git
+[submodule "tee_attest/tinfoil/modelwrap"]
+	path = tee_attest/tinfoil/modelwrap
+	url = https://github.com/tinfoilsh/modelwrap.git
+[submodule "tee_attest/tinfoil/cvmimage"]
+	path = tee_attest/tinfoil/cvmimage
+	url = https://github.com/tinfoilsh/cvmimage.git

@@ -1,0 +1,28 @@
+[package]
+name = "ephemeralml-poc-dishonest-prover"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "poc"
+path = "src/main.rs"
+
+[[bin]]
+name = "poc_f7"
+path = "src/bin/poc_f7.rs"
+
+[[bin]]
+name = "poc_f9_context_unattested"
+path = "src/bin/poc_f9_context_unattested.rs"
+
+[[bin]]
+name = "poc_f6_signing_key_chain"
+path = "src/bin/poc_f6_signing_key_chain.rs"
+
+[dependencies]
+ephemeral-ml-common = { path = "../EphemeralML/common" }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+hex = "0.4"
+sha2 = "0.10"
