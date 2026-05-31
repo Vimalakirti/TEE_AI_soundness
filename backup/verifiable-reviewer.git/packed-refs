@@ -1,0 +1,19 @@
+# pack-refs with: peeled fully-peeled sorted 
+ec0d63d24a47d103146f07b1156256167d9312ab refs/heads/dmccanns/github
+98ed88aa69064fb8e57c1c6a390336e3bfad5f46 refs/heads/main
+ec0d63d24a47d103146f07b1156256167d9312ab refs/pull/1/head
+f09b4f2c169b6b7d0e9f226e306d9b2c19bf9175 refs/pull/1/merge
+2b3cb00b372cce6a3a86dbd1aa7a57bf6bd37acc refs/pull/2/head
+5281fec0492ecc219a8d3e61f9700ba5b475d9a2 refs/pull/3/head
+87ceaec9cb9b06d1d96e2b433f136837f09e6b05 refs/pull/4/head
+14b981455f215368aee9b97c328b61a4ce1818cf refs/pull/5/head
+8533db121a5bca5a4dacb812503ae3f77c26e216 refs/pull/6/head
+47f36a26da9e5701367b9f559246fa9fd73357ae refs/pull/7/head
+ea4f6d38e6c0230469fe8d4016494cffcdca4c7f refs/pull/8/head
+f35db58b4818bdfdea1a117f72836e0a25fd851b refs/tags/v0.0.1
+54dfddb79a4176436f8668de59954952b05455ad refs/tags/v0.0.2
+497c10e7fd05080144975884fa694a261c28cbf5 refs/tags/v0.0.3
+c27b2f6d621654ccd8bab64fa3e100cdbc185803 refs/tags/v0.0.4
+e79b20e2c31ff2434f229dd9ef40f90408fd8b18 refs/tags/v0.0.5
+615b7469f28adf882f0fffa27119bfc3287ba6fb refs/tags/v0.0.6
+ec0d63d24a47d103146f07b1156256167d9312ab refs/tags/v0.0.7
