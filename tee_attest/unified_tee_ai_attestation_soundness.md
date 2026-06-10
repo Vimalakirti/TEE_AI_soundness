@@ -561,7 +561,7 @@ J5: external evidence)**
 - *What happens.* The enclave hashes request bytes and response
   bytes. It builds an application-level signed structure (Power's
   DCAP-report-data layout, EphemeralML's AIR v1 CWT/COSE_Sign1,
-  NEAR AI's "chat_id:request_hash:response_hash" Ed25519, Tinfoil
+  NEAR AI's `<field>:request_hash:response_hash` Ed25519 text, Tinfoil
   reviewer's in-toto DSSE) binding `(request_hash, response_hash,
   model_hash, nonce)`. It signs with the session key from Stage 2.
 - *Trust property created.* "I cryptographically attest that the
@@ -687,7 +687,8 @@ All six systems instantiate Stages 0–8, with these variations:
   `report_data` and then uses the TLS key to sign DSSE envelopes.
 - **Stage 7's receipt schema.** Power: ECDSA signature on response
   text. EphemeralML: COSE_Sign1 over a CBOR claims map. NEAR AI:
-  Ethereum-style ECDSA over `chat_id:request_hash:response_hash`.
+  Ethereum-style ECDSA over `<field>:request_hash:response_hash` (the
+  leading field is unconfirmed and discarded by the verifier — see N-6).
   Tinfoil reviewer: in-toto v0.1 statement DSSE-signed and
   published to Rekor. Laminator: no per-inference receipt; the
   attestation IS the receipt for the audit task.
@@ -996,6 +997,23 @@ verifier *should* perform on someone else's data — typically a
 third party (NRAS, Sigstore, the operator's own infrastructure
 proxy).
 
+**Bounding rollback at adjacent layers (TCB floors).** Closing F3
+currency at the *release / code-measurement* layer is not the only
+mitigation surface; an independent floor on the *platform / firmware*
+layer bounds how far rollback can travel even when the proxy is
+unauthenticated. Tinfoil's `tinfoil-go` SDK is the reference instance:
+AMD SEV `MinimumBuild` / `MinimumVersion` / `MinimumTCB` /
+`MinimumLaunchTCB` in `verifier/attestation/sev.go:101-127` and TDX
+`MinimumTcbEvaluationDataNumber` in `verifier/attestation/tdx.go:33`
+mean a proxy-mediated rollback can serve only releases that still
+satisfy those floors. The vendor has indicated a planned monotonic
+**minimum-CVM-version** floor in the SDK as the next layer, which would
+bound rollback at the deployment-image layer too. This is *not* a
+substitute for currency at the release layer (the residual finding
+Tinfoil-1 still stands), but it is the design pattern that makes the
+class survivable in practice: when an upstream evidence source is a
+singleton, layer independent floors below it to bound the blast radius.
+
 ### 3.7 F4 — Measured code's behavior on attacker-controlled input escapes the measurement
 
 **Pattern.** The most general statement of soundness for
@@ -1126,7 +1144,7 @@ different bytes).
 | Power | `/v1/attestation` returns `manifest.sha256` (registration time) at `attestation.rs:91-105` | M | **3** | runtime | TOCTOU between attestation and load; closed only if `model_hashes` is set |
 | Power | `manifest.sha256` survives across model unload / reload | M | **3** | runtime | Page-cache eviction → backing store re-read can return different bytes |
 | nearai verifier | `mr_config_id` checked as `startswith("01" + compose_hash)` | L | (background) | runtime | Compose hash was computed at boot; trailing bytes unchecked |
-| modelwrap | Idempotency: skip if output exists at `pack.py:58-71, 77-102` | H | **4** | build-time | Pre-placed outputs bypass the build, no comparison against fresh build. Once the artefact ships, dm-verity binds bytes to root hash strongly, but the root hash itself can be attacker-chosen at build. |
+| modelwrap | Idempotency: skip if output exists at `pack.py:58-71, 77-102` | H (standalone) / Hygiene (Tinfoil pipeline) | **4** | build-time | Pre-placed outputs bypass the build, no comparison against fresh build. Once the artefact ships, dm-verity binds bytes to root hash strongly, but the root hash itself can be attacker-chosen at build. **Vendor reframing (June 2026):** in Tinfoil's first-party deployments the root hash is pinned in `tinfoil-config.yml`, whose SHA-256 is on the kernel cmdline (`cvmimage/tinfoil/cmd/boot/config.go:142-167`) and therefore in the launch measurement; combined with deterministic reproducibility, M-1 escalates to a verifier-accepting attestation only via CI/repo compromise of the config repo (still exploitable in composition with Tinfoil-1 if a stale signed config gets proxy-replayed). For third-party `modelwrap` adopters without that surrounding pipeline, severity stays H. |
 | Tinfoil SDK | Sigstore observer-timestamp can be old | L | (compounds 11) | runtime | `sigstore-go` checks for a non-zero number of observer timestamps but does not enforce freshness; combined with the proxy choosing the bundle, the verifier can be pinned to a stale-but-validly-signed release |
 
 **Why this recurs.** Re-hashing the model on every request is
@@ -1145,7 +1163,13 @@ swaps because the in-memory copy is still the bytes the enclave
 loaded. (3) *Extend the launch measurement to cover the model
 bytes* via dm-verity (modelwrap's intent) — fully closes runtime
 F5, but moves the gap to build-time F5 (Attack 4) unless the build
-tool is also locked down.
+tool is also locked down. Tinfoil's deployed pipeline shows the
+build-time F5 itself can be bounded by adding **(3a)** a measured
+upper-layer config (`tinfoil-config.yml` whose SHA-256 is on the
+kernel cmdline) pinning the dm-verity root hash, plus deterministic
+reproducibility as an out-of-band cross-check — leaving the chain
+sound as long as the *config-publication path* itself is not
+rollback-able (which routes back to F3 currency, §3.6).
 
 **Not the same as.** F1 is unmeasured static config flowing into
 the payload. F5 is *measured* state going stale relative to
@@ -1218,7 +1242,7 @@ can't pin what doesn't exist).
 | System | Concrete location | Severity | Attack # | Detail |
 |---|---|---|---|---|
 | EphemeralML | AIR v1 receipt schema has no sampling fields (`common/src/air_receipt.rs:82-108`) | H | **9** | CDDL defines `model_id`, `model_version`, `model_hash`, `request_hash`, `response_hash`, `policy_version`, `security_mode` — no `temperature`, `top_p`, `seed` |
-| nearai cloud-verifier | Signed text is `chat_id:request_hash:response_hash` (`chat_verifier.py:79-96`) | M | — | Parser only looks for hashes; no sampling slot |
+| nearai cloud-verifier | Signed text is `<field>:request_hash:response_hash` (`chat_verifier.py:79-96`) | M | — | Parser only looks for hashes; no sampling slot |
 | Power | OpenAI-compatible API exposes `temperature`, `top_p`, `seed` per request | H | — | Backends honour these per call; nothing in the attestation payload echoes them |
 | Laminator | Audit-time benchmark accuracy is per-dataset, not per-prompt | n/a | (7's metric-forgery cousin) | The static-loader attack (Attack 7, F4) demonstrates the receipt-field forgery analogue; sampling unattested is implicit in Laminator's `accuracy_attestation` not recording per-prompt parameters |
 
@@ -1372,7 +1396,7 @@ doesn't exist).
 | System | Concrete location | Severity | Attack # | Detail |
 |---|---|---|---|---|
 | Power | OpenAI-compatible `messages` array (`api/openai/chat.rs`); prior turns are operator-controlled before request_hash is computed | M | — | Multi-turn deployment: operator can insert extra turns into the conversation history beyond what the user typed |
-| NEAR AI cloud-verifier | Signed `text` is `chat_id:request_hash:response_hash` (`chat_verifier.py:79-96`); composes with N-6 (no `chat_id` binding) | M | — | Multi-turn chat; no slot for retrieved context, tool outputs, or output-pipeline component hashes |
+| NEAR AI cloud-verifier | Signed `text` is `<field>:request_hash:response_hash` (`chat_verifier.py:79-96`); composes with N-6 (verifier discards the leading field) | M | — | Multi-turn chat; no slot for retrieved context, tool outputs, or output-pipeline component hashes |
 | EphemeralML | AIR v1 CDDL has `request_hash`, `response_hash`, `model_id`, etc., but no `prepended_context_hash`, `tool_call_log_hash`, or `post_processing_pipeline_hash` (`common/src/air_receipt.rs:82-108`) | M | — | Per-inference receipts treat the request as opaque bytes; nothing distinguishes a user's question from a prompt the operator constructed |
 | Tinfoil `verifiable-reviewer` (not in surveyed slice; flagged for completeness) | LLM that reads PR files and writes review text; tool calls (`read_file`, etc.) not attested | H | — | Canonical agentic use case: the model's "review" is a function of file-read outputs the operator mediates; receipt binds the final review but nothing about what the model was shown |
 
@@ -1474,11 +1498,25 @@ lookup table.
 | | F1 unmeasured config | F2 opt-in policy | F3 unauth. external | F4 trusted code | F5 cached state | F6 channel unbound | F7 sampling unattested | F8 CPU↔GPU chain | F9 app-layer context |
 |---|---|---|---|---|---|---|---|---|---|
 | **Laminator** | H — `loader.insecure__use_cmdline_argv = true` (`main.manifest.template:17`) | M — manifest covers `*.py` files but not config | — | **H — `torch.load` pickle RCE [1, 7]** (`main.py:291, 384`) | M — registration-time `manifest.sha256` analog | n/a (no live channel; verifies via local SGX quote) | n/a (audit-time accuracy, not per-inference receipts) | n/a (SGX only, no GPU CC in scope) | n/a (audit-time on closed dataset; no multi-turn / RAG / tools) |
-| **modelwrap** | M — `MODEL` env, optional `@revision` (`pack.py:25-31`) | — (no verifier-side policy surface) | L — trusts `huggingface_hub` LFS verify | — (no in-enclave interpreter at build) | **H — pre-existing outputs bypass build [4]** (`pack.py:58-71, 77-102`) | n/a (build-time tool) | n/a | n/a (build-time tool, no GPU) | n/a (build-time tool, no inference) |
+| **modelwrap** | Hygiene¹ — `MODEL` env, optional `@revision` (`pack.py:25-31`); deployment-config-lint under Tinfoil pipeline | — (no verifier-side policy surface) | L — trusts `huggingface_hub` LFS verify | — (no in-enclave interpreter at build) | **H (standalone) / Hygiene¹ (Tinfoil pipeline) — pre-existing outputs bypass build [4]** (`pack.py:58-71, 77-102`) | n/a (build-time tool) | n/a | n/a (build-time tool, no GPU) | n/a (build-time tool, no inference) |
 | **A3S Power** | M — `A3S_TEE_SIMULATE=1` env var (`tee/attestation.rs:147-154`) | **H — `model_hashes` / `model_signing_key` / `hardware_verifier` all `Option<>`** (`autoload.rs:152-165`; composes with **[3]**) | L — `/v1/models/pull` trusts HF Hub name-not-publisher binding (P-8, `src/model/pull.rs`); analogous to modelwrap M-3 | **M — minijinja chat-template hijack [10]** (`backend/chat_template.rs:57-104`, sandboxed) | **M — attestation returns cached `manifest.sha256` [3]** (`api/openai/attestation.rs:91-105`) | M — RA-TLS / SPKI pinning is feature-gated (`tls` Cargo feature) | **H — no sampling field in payload [9 analog]** | H — H100 CC advertised; no per-request GPU UUID or NRAS-verdict-hash slot in `report_data` (PoC candidate) | M — multi-turn `messages` array; history operator-shaped before request_hash; no RAG/tool slot in receipt |
-| **NEAR AI verifier** | **H — no `model_hash` slot in `report_data` layout [2]** (`py/model_verifier.py:66-126`) | M — TLS-mode is opt-in (`--verify-tls`) | **H — NRAS JWT unverified [6]** (`py/model_verifier.py:42-47`); also Sigstore HEAD-only; OutOfDate accepted | — (client-side, no in-enclave interpreter) | L — `mr_config_id` prefix match (`startswith("01" + hash)`) | **H — `tls_verifier.py` opt-in; default flow doesn't check live cert [8]** | M — signed `text` is `chat_id:request_hash:response_hash`; no sampling slot | H — TDX + H100 CC; NRAS verdict not cross-checked against any CPU-side claim (`py/model_verifier.py:142-180`) | M — multi-turn chat; composes with N-6 (no `chat_id` binding); no slot for retrieved context or tool outputs |
+| **NEAR AI verifier** | **H — no `model_hash` slot in `report_data` layout [2]** (`py/model_verifier.py:66-126`) | M — TLS-mode is opt-in (`--verify-tls`) | **H — NRAS JWT unverified [6]** (`py/model_verifier.py:42-47`); also Sigstore HEAD-only; OutOfDate accepted | — (client-side, no in-enclave interpreter) | L — `mr_config_id` prefix match (`startswith("01" + hash)`) | **H — `tls_verifier.py` opt-in; default flow doesn't check live cert [8]** | M — signed `text` is `<field>:request_hash:response_hash`; no sampling slot | H — TDX + H100 CC; NRAS verdict not cross-checked against any CPU-side claim (`py/model_verifier.py:142-180`) | M — multi-turn chat; composes with N-6 (verifier discards leading field); no slot for retrieved context or tool outputs |
 | **EphemeralML** | M — `mock` feature; `expected_measurement` unpinned | **H — `AirVerifyPolicy::default()` leaves every `expected_*` as `None`; `MHASH` not in `is_critical_check_name` [5]** (`common/src/air_verify.rs:283-301, 385-415`) | — (verifier core checks only its own claims) | — (Rust, closed CBOR claims map, no eval) | L — `model_hash` check only if pinned | M — channel binding deferred to verifier-API caller | **H — AIR v1 CDDL has no sampling fields [9]** (`common/src/air_receipt.rs:82-108`) | M — `platform: text` field is a label, not a binding; `gpu_attestation_doc_hash` absent in CDDL | M — AIR v1 CDDL has no `prepended_context_hash` / `tool_call_log_hash` / `post_processing_pipeline_hash` |
-| **Tinfoil SDK** | L — embedded `trusted_root.json` requires SDK release to rotate | — (Sigstore consensus checks are mandatory) | **H — `github-proxy.tinfoil.sh` mediates currency [11]** (`verifier/github/github.go:11`); SAN regex too permissive | — (Go, no eval surface) | L — Sigstore observer-timestamp check exists but freshness not enforced (composes with **[11]**) | — (mandatory `TLSBoundRoundTripper`; reference fix) | n/a (verifier SDK, not LLM endpoint) | M — H100 verdict for `inference.tinfoil.sh` rides through the same proxy as the CPU bundle (Tinfoil-1's surface, GPU side) | n/a (verifier SDK; `verifiable-reviewer` would land H if surveyed) |
+| **Tinfoil SDK** | L — embedded `trusted_root.json` requires SDK release to rotate | — (Sigstore consensus checks are mandatory) | **H (release layer) — `github-proxy.tinfoil.sh` mediates currency [11]** (`verifier/github/github.go:11`); platform/firmware rollback already bounded by TCB floors (`sev.go:101-127`, `tdx.go:33`); SAN regex too permissive | — (Go, no eval surface) | L — Sigstore observer-timestamp check exists but freshness not enforced (composes with **[11]**) | — (mandatory `TLSBoundRoundTripper`; reference fix) | n/a (verifier SDK, not LLM endpoint) | M — H100 verdict for `inference.tinfoil.sh` rides through the same proxy as the CPU bundle (Tinfoil-1's surface, GPU side) | n/a (verifier SDK; `verifiable-reviewer` would land H if surveyed) |
+
+¹ **Hygiene-with-caveats** for modelwrap reflects the vendor-response
+reframing (June 2026): the M-1/M-2/M-4 PoCs structurally hold but
+escalation to verifier-accepting attestation requires also corrupting
+the signed `tinfoil-config.yml` (whose SHA-256 is on the kernel cmdline
+and therefore in the launch measurement —
+`cvmimage/tinfoil/cmd/boot/config.go:142-167`) AND defeating
+reproducible-build cross-check. For Tinfoil's first-party deployments
+the findings reduce to build-host hygiene + auditor convenience; for
+third-party adopters of `modelwrap` without the surrounding signed
+config + reproducible-build pipeline, the original H/M severity stands.
+The one residual composition is the M-1 + Tinfoil-1 chain via
+proxy-mediated rollback to a stale `tinfoil-config.yml`, addressed in
+§4.5.
 
 ### 4.3 Per-system summary (row totals)
 
@@ -1488,7 +1526,7 @@ high-severity findings concentrated?
 | System | H | M | L | — / n.a. | PoCs anchored here | Posture summary |
 |---|---|---|---|---|---|---|
 | Laminator | 2 | 2 | 0 | 5 | **1, 7, 14** | F4 pickle RCE; F1 argv unmeasured (both the H finding *and* its PoC); everything else n/a — no live channel, no per-inference receipt, no GPU CC, no application layer wrapping the audit task |
-| modelwrap | 1 | 1 | 1 | 6 | **4** | Single H finding (build-time forgery); narrow tool, narrow attack surface, narrow defensive footprint |
+| modelwrap | 0¹ | 0¹ | 1 | 6 | **4** | One H finding *as a standalone tool* (build-time forgery), but reframed to **build-host hygiene** under Tinfoil's first-party pipeline (see ¹ footnote above and `modelwrap_soundness_finding.md` vendor-response section): the `tinfoil-config.yml` + reproducible-build chain bounds the exploit. Stays H for third-party adopters who copy `modelwrap` without inheriting that pipeline. |
 | A3S Power | 3 | 5 | 1 | 0 | **3, 10, 12, 15** | Largest attack surface in the survey — every one of the nine cells is graded; four PoCs anchored |
 | NEAR AI verifier | 4 | 3 | 1 | 1 | **2, 6, 8, 17, 18, 19** | Four independent H gaps and three M gaps; the most attack-anchored system in the survey at 6 PoCs |
 | EphemeralML | 2 | 4 | 1 | 2 | **5, 9, 13, 16** | Two H gaps (F2 default policy, F7 schema absence); F4 actively avoided by Rust + CBOR closed-map design; F8 and F9 add M-severity composition gaps; F6 added via the signing-key chain PoC |
@@ -1557,6 +1595,31 @@ chooses which bundle the SDK ever sees, so the observer-timestamp
 check freshness-protects only the *historical bundle* the proxy
 returned — not against rollback. Closing F3 without closing F5,
 or vice versa, leaves the gap.
+
+Two June-2026 vendor-response refinements tighten this story
+without changing the structural claim:
+
+- Tinfoil's SDK already enforces **AMD/TDX TCB floors** in
+  `tinfoil-go/verifier/attestation/sev.go:101-127` and
+  `tinfoil-go/verifier/attestation/tdx.go:33`. Rollback is therefore
+  *bounded* to the release / code-measurement layer; platform /
+  firmware rollback is independently floored. The original wording
+  ("any historically-valid release") was overstated.
+- The matrix-flagged composition lives one layer up: the modelwrap
+  M-1 finding (build-time stale state) escalates to verifier-
+  accepting attestation only by also corrupting the signed
+  `tinfoil-config.yml` that pins the mpk root hash on the kernel
+  cmdline. The natural attack path is to chain modelwrap M-1 with a
+  Tinfoil-1 proxy-mediated rollback to a stale `tinfoil-config.yml`
+  whose referenced root hash the attacker can match. The vendor's
+  planned monotonic minimum-CVM-version floor closes the CVM half;
+  whether the same floor extends to deployment-config-repo versions
+  is the open question we have raised in follow-up.
+
+Both refinements illustrate the same meta-pattern: **bounding a
+rollback at one layer does not automatically bound it at an
+adjacent layer**, and the F3 + F5 + (here) F5-build composition
+travels along the layer that the floor does not yet reach.
 
 **F4 was previously framed as binary; the survey shows it has a
 spectrum.** Laminator's pickle RCE is the canonical end (H,
