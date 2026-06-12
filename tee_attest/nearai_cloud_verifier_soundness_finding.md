@@ -367,73 +367,23 @@ signing key.
 
 ---
 
-## Finding N-6 — Verifier discards the leading field of the signed `text`
+## Finding N-6 — Withdrawn
 
-**Severity:** Informational. The content-hash pair already carries the
-integrity guarantee; this is a fail-open-on-unparsed-field pattern, not
-an exploitable soundness break.
+**Status:** Withdrawn after review — not a soundness gap.
 
-**Location:** `py/chat_verifier.py:79-96`
-
-```python
-hashed_text = signature_payload["text"]
-parts = hashed_text.split(":")
-if len(parts) not in (2, 3):
-    raise ValueError(...)        # format guard
-if len(parts) == 3:
-    request_hash_server, response_hash_server = parts[1], parts[2]
-else:
-    request_hash_server, response_hash_server = parts[0], parts[1]
-print("Request hash matches:", request_hash == request_hash_server)
-print("Response hash matches:", response_hash == response_hash_server)
-
-signature = signature_payload["signature"]
-signing_address = signature_payload["signing_address"]
-recovered = recover_signer(hashed_text, signature)
-print("Signature valid:", recovered.lower() == signing_address.lower())
-```
-
-**Mechanism:** The signed text is `<field>:request_hash:response_hash`
-(three colon-separated parts) or `request_hash:response_hash` (two
-parts). In the three-part case the verifier reads `parts[1]`/`parts[2]`
-as the hashes and **discards `parts[0]` entirely** — it is never
-compared against anything. We do not have a captured
-`/v1/signature/{chat_id}` response or the `cloud-api` server source, so
-**we cannot confirm what `parts[0]` contains**: it may be the
-`chat_id`, a version/type marker, or some other label. Whatever it is,
-the verifier ignores it.
-
-**What this means for soundness:** The substantive guarantee — that the
-exact request and response bytes the client holds were processed by a
-TEE-bound signing key — is carried entirely by the `request_hash` /
-`response_hash` pair plus the `signing_address`↔hardware binding, and
-holds regardless of `parts[0]`. A dishonest server cannot reuse a
-signature for *different* content (the recomputed hashes would not
-match). A replayed signature validates only when the request and
-response bytes are byte-identical — in which case the client is
-receiving a genuine TEE-produced response to its exact request, and the
-acceptance is correct. The README never claims freshness or replay
-protection for the chat signature (only the attestation-report nonce
-path makes that claim), so no asserted property is being violated.
-
-**Two distinct observations, both low-impact:**
-
-1. *Unparsed field.* If `parts[0]` is the `chat_id`, the server already
-   binds it and the verifier is simply discarding it rather than
-   checking it against the `chat_id` it requested — the same
-   fail-open-on-unknown-field pattern as N-8.
-2. *No freshness primitive.* Even if `parts[0]` is the `chat_id`,
-   binding it cannot provide freshness/anti-replay, because the
-   `chat_id` is **server-assigned**. Only a *client-chosen* nonce echoed
-   into the signed payload would — and the chat-signature path has none,
-   unlike the attestation-report path (`secrets.token_hex(32)`).
-
-**Mitigation:** If `parts[0]` is intended to carry the `chat_id`, have
-the verifier assert `parts[0] == chat_id` (the value is already in hand;
-the check is free). If freshness of chat responses is a goal, add a
-client-chosen nonce to the signed payload rather than relying on the
-server-assigned `chat_id`. Absent either, this finding is purely
-informational.
+This finding originally concerned the signed `text` returned by
+`/v1/signature/{chat_id}`: that the verifier discards the leading field
+(`parts[0]`) of `<field>:request_hash:response_hash`. On review we
+concluded it is not a soundness issue and have excluded it. The
+integrity guarantee is carried entirely by the `request_hash` /
+`response_hash` pair plus the `signing_address`↔hardware binding, so a
+replayed signature validates only for byte-identical content (a genuine
+TEE-produced response to the client's exact request), and the
+chat-signature path asserts no freshness property to violate. Even
+binding the `chat_id` would not change this — it is server-assigned, and
+what the server does with it cannot be observed client-side. We keep the
+identifier N-6 as withdrawn so the remaining findings (N-7…N-9) retain
+the numbers used in the disclosed report.
 
 ---
 
@@ -601,7 +551,7 @@ detect this — but N-2 means the detection is printed, not enforced.
 | N-3 | `OutOfDate` TDX accepted as pass | Medium | Allowlist includes both | Default-reject; opt-in flag |
 | N-4 | `CERT_NONE` in tls_verifier | Acknowledged | Single-socket fetch carries the safety | Pin `signing_address` |
 | N-5 | secp256k1 used for both sign & encrypt | Low | Single key dual-use | Separate X25519 encryption key |
-| N-6 | Verifier discards leading field of signed text | Informational | `parts[0]` unchecked; chat path has no client nonce | Assert `parts[0] == chat_id` if it carries one; add a client nonce for freshness |
+| N-6 | *Withdrawn after review — not a soundness gap* | — | — | — |
 | N-7 | Sigstore HEAD-check, not provenance | Low | Reachability ≠ verification | Use `version_verifier`-style DSSE check |
 | N-8 | `mr_config_id` prefix-match | Low | `startswith` ignores trailing bytes | Strict equality |
 | N-9 | Failures `print` instead of `raise` | Operational | Side-effecting `print` style | Accumulate + `sys.exit(1)` |

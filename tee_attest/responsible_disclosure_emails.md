@@ -504,10 +504,9 @@ attachment; the runnable PoCs under
 > - N-2: GPU nonce mismatch is `print`, not `raise`.
 > - N-3: TDX `OutOfDate` is treated as a pass.
 > - N-5: ECDSA "encryption" is ECIES with secp256k1 + key reuse.
-> - N-6: Verifier discards the leading field of the signed `text`
->   (`parts[0]`), so any `chat_id` it may carry goes unchecked
->   (informational; the content-hash pair carries the integrity
->   guarantee).
+> - N-6: *Withdrawn after review* — not a soundness gap (the
+>   content-hash pair plus the signing-key binding already carries the
+>   integrity guarantee).
 > - N-7: Sigstore "provenance" check is reachability-only.
 > - N-8: `mr_config_id` prefix-matches the magic `"01"`.
 > - N-9: Verifier defaults emit `print` lines, never `raise`.
