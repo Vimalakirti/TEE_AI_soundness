@@ -90,12 +90,63 @@ entirely the proxy's choice.
 
 ---
 
+## Vendor response (June 2026): rollback is bounded by TCB floors
+
+After our disclosure, Tinfoil (Tanya, co-founder) pointed out two
+existing mitigations that bound the rollback surface, which we had not
+incorporated. We verified both against the source:
+
+- **AMD SEV TCB floor** is compiled into the client in
+  `tinfoil-go/verifier/attestation/sev.go:101-127`:
+  `MinimumGuestSvn: 0`, `MinimumBuild: 21`,
+  `MinimumVersion: uint16((1 << 8) | 55)` (i.e., 1.55), plus
+  `MinimumTCB` and `MinimumLaunchTCB` populated from a `kds.TCBParts`
+  struct that also pins `BlSpl`, `TeeSpl`, `SnpSpl`, `UcodeSpl`.
+- **TDX TCB evaluation-data floor** is compiled into the client in
+  `tinfoil-go/verifier/attestation/tdx.go:33`:
+  `const MinimumTcbEvaluationDataNumber = 19`, enforced by
+  `validateTcbEvaluationDataNumber` against both QE Identity
+  (`tdx.go:165-170`) and TCB Info (`tdx.go:181-185`) collateral.
+
+So a proxy-mediated rollback cannot travel arbitrarily far back in
+time: it is bounded to the *release / code-measurement* layer. Platform
+and firmware are floored independently of whatever the proxy returns.
+
+Tinfoil has also committed to shipping a **monotonic minimum CVM-version
+floor** in the SDK as the next mitigation, which would close the
+remaining release-layer rollback window for first-party Tinfoil services
+once a customer has observed a given version. We have raised one
+follow-up question (recorded below): whether that floor will also apply
+to deployment-config-repo versions, since otherwise the planned floor
+addresses CVM rollback but not signed-`tinfoil-config.yml` rollback.
+
+**Composition with `modelwrap` M-1.** The reframing in
+`modelwrap_soundness_finding.md` notes that M-1's escalation depends on
+also corrupting `tinfoil-config.yml`. That config is itself published
+through Tinfoil's CI and inherits the same `github-proxy.tinfoil.sh`
+trust path as the SDK release. So an attacker who can proxy-mediate a
+rollback to a historical signed `tinfoil-config.yml` that references a
+historical mpk root hash (which the attacker's pre-placed modelwrap
+output happens to match) chains Tinfoil-1 with M-1 to defeat both
+gates. This composition is the one residual concern that survives
+the per-finding reframings; closing it requires either (a) the proposed
+CVM-version floor extending to deployment-config-repo versions, or
+(b) an out-of-band currency check on `tinfoil-config.yml` itself.
+
+---
+
 ## Finding Tinfoil-1 — `github-proxy.tinfoil.sh` is the sole arbiter of "current release"
 
-**Severity:** High. Allows silent rollback to any
-historically-valid Tinfoil release.
+**Severity:** High. Allows silent rollback to any historically-valid
+Tinfoil release at the release / code-measurement layer. Per the
+vendor-response section above, the AMD SEV (`sev.go:101-127`) and TDX
+(`tdx.go:33`) TCB floors compiled into the client bound the rollback so
+that *platform* / firmware downgrades are already prevented. The
+residual gap is release-layer rollback; Tinfoil's planned monotonic
+CVM-version floor will close it for CVM-version downgrades once a
+customer has observed a given version.
 
-**Taxonomy class:** **F3** (external evidence parsed without
+**Taxonomy class:** **F4** (external evidence parsed without
 authentication) — specifically the *currency* sub-flavor: the
 evidence is authenticated *at signing time*, but its currency
 relative to the verifier's request is not.
@@ -148,10 +199,10 @@ any (tag, digest, bundle) triple that Tinfoil's CI has signed at
 any point in the past — including stale releases.
 
 **Attack.** Operator (= Tinfoil, or anyone who compromises the
-proxy) wants the verifier to pin to release `v0.3.0` (which is
-still a Tinfoil-signed release but happens to contain a known
-soundness gap or bypass the operator wants to exploit). The
-proxy:
+proxy) wants the verifier to pin to release `v0.3.0` — still a
+Tinfoil-signed release, still within the AMD/TDX TCB floor (so it
+passes the platform-firmware checks), but containing a known
+soundness gap or bypass the operator wants to exploit. The proxy:
 
 1. On `GET /repos/<repo>/releases/latest`, returns
    `{"tag_name": "v0.3.0", ...}` instead of the actual latest tag.
@@ -194,6 +245,14 @@ touched.
   enforce a floor.
 - Pin (repo, tag, digest) tuples via a separate signed manifest
   the caller obtains out of band.
+- **(Vendor-planned)** Ship a monotonic minimum-CVM-version floor in
+  every SDK, analogous to the existing AMD/TDX TCB floors
+  (`sev.go:101-127`, `tdx.go:33`). This closes the rollback at the
+  CVM-version layer. **Open question to confirm with Tinfoil:**
+  whether the same floor mechanism will also bound deployment-config-
+  repo versions (i.e., the `tinfoil-config.yml` of each Tinfoil-
+  hosted service), since otherwise an attacker can still chain this
+  finding with `modelwrap` M-1 via a stale signed config.
 
 ---
 
@@ -246,7 +305,7 @@ naming convention (e.g., `@refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+$`).
 **Severity:** Acknowledged-by-design.
 
 **Taxonomy class:** F1 (which "trusted hardware measurements" are
-expected is operator-configured) + F3-currency (the
+expected is operator-configured) + F4-currency (the
 `tinfoilsh/hardware-measurements` repo's "latest" is resolved via
 the same proxy).
 
@@ -312,24 +371,30 @@ proxy.
 
 | # | Title | Severity | Class | One-line fix |
 |---|---|---|---|---|
-| Tinfoil-1 | github-proxy is sole arbiter of "current" | High | F3 (currency) | Two-source resolution; freshness floor; signed (tag, digest) manifest |
+| Tinfoil-1 | github-proxy is sole arbiter of "current" | High (release-layer); platform/firmware bounded by TCB floors in `sev.go:101-127` / `tdx.go:33` | F4 (currency) | Two-source resolution; freshness floor; planned CVM-version floor in SDK; signed (tag, digest) manifest |
 | Tinfoil-2 | SAN regex too permissive | Low | F1-flavored | Pin to specific workflow file + version regex |
-| Tinfoil-3 | Hardware measurements pinned via same proxy | Acknowledged | F1 + F3 | Same as Tinfoil-1, or fetch Intel PCS directly |
+| Tinfoil-3 | Hardware measurements pinned via same proxy | Acknowledged | F1 + F4 | Same as Tinfoil-1, or fetch Intel PCS directly |
 
 ## Suggested headline framing
 
-> *Tinfoil's verifier SDK is one of two best-engineered in the
-> survey (the other being EphemeralML). The Sigstore-side
-> verification is correct, the TLS-key binding is mandatory, and
-> the trust chain from hardware attestation through code
-> measurement to live channel is wired correctly. The remaining
-> soundness gap is at the entry point: every "which release is
-> current?" query flows through a single Tinfoil-operated HTTPS
-> intermediary whose responses are not authenticated against a
+> *Tinfoil's verifier SDK is well-engineered: the Sigstore-side
+> verification is correct, the TLS-key binding is mandatory, the
+> trust chain from hardware attestation through code measurement to
+> live channel is wired correctly, and the AMD/TDX TCB floors
+> compiled into `sev.go` and `tdx.go` already bound any
+> proxy-mediated rollback at the platform / firmware layer. The
+> remaining soundness gap is at the entry point: every "which
+> release is current?" query flows through a single Tinfoil-operated
+> HTTPS intermediary whose responses are not authenticated against a
 > second trust root. The Sigstore verification downstream catches
-> forgery but not rollback. A malicious or compromised proxy can
-> silently pin verifiers to any historically-signed Tinfoil
-> release.*
+> forgery but not rollback within the release / code-measurement
+> layer. A malicious or compromised proxy can silently pin verifiers
+> to any historically-signed Tinfoil release that still satisfies
+> the TCB floor. Tinfoil's planned monotonic CVM-version floor
+> closes this for CVM-version downgrades; the residual concern is
+> whether the same mechanism extends to deployment-config-repo
+> versions, since otherwise this finding chains with `modelwrap`
+> M-1 via a stale signed `tinfoil-config.yml`.*
 
 ## Responsible disclosure
 
