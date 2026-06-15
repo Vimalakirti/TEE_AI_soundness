@@ -17,13 +17,24 @@ accepts.
 **Headline:** The verifier composes several strong primitives — DCAP
 quote verification via `dcap-qvl`, `mr_config_id` binding to a compose
 hash, SHA256(signing_address || tls_spki) in `report_data[0..32]`,
-gateway TLS PEM compared against a live socket — but it has three
-soundness-critical gaps: (1) the NVIDIA GPU verdict is trusted from an
-**unverified JWT** returned by NRAS, (2) the GPU nonce mismatch is
-informational (printed, not enforced), and (3) the TDX `"OutOfDate"`
-status is treated as a pass. A dishonest service that can MITM the NRAS
-call or that operates with an OutOfDate TCB can produce reports the
-verifier scripts will accept.
+gateway TLS PEM compared against a live socket.
+
+**Reframe after the maintainer's disclosure response (2026-06):** NEAR AI
+established that the platform binds the properties we tested into the TEE
+evidence — model identity via `mr_config_id` + Sigstore-pinned compose
+digests, the NRAS verdict over CA-verified TLS to NVIDIA, the TLS
+fingerprint in `report_data`, and a shared nonce + compose across the CPU
+and GPU attestations. We accept those corrections. The residual gaps are
+not platform soundness breaks but **under-enforcement in the published
+verification client** — shipped as "Cryptographic Verification Tools,"
+i.e. what a user is directed to run: it reads the NRAS verdict with no
+JWT check of its own (defense-in-depth on the TLS channel; N-1), prints
+the GPU-nonce match rather than enforcing it (N-2), accepts `"OutOfDate"`
+TDX status (N-3), gates live-channel binding behind opt-in flags (N-4),
+and surfaces results as `print` lines rather than fail-closed gates
+(N-9). The gap is between what the evidence binds and what the tool a
+user actually runs enforces. (There is no MITM position on the NRAS call:
+the client itself fetches the verdict from NVIDIA over CA-verified TLS.)
 
 All findings refer to the repository state at the time of cloning
 (`depth=1` snapshot).
@@ -137,11 +148,16 @@ sequenceDiagram
 
 ---
 
-## Finding N-1 — NVIDIA NRAS JWT signature is not verified
+## Finding N-1 — NVIDIA NRAS JWT signature is not verified (defense-in-depth)
 
-**Severity:** High. The GPU verdict is the entire "this model ran on a
-genuine H100 CC GPU" guarantee, and it is parsed from an unverified
-JWT.
+**Severity:** Low / defense-in-depth (downgraded after the maintainer's
+response). The client fetches the GPU verdict directly from
+`nras.attestation.nvidia.com` over **CA-verified TLS**, so the verdict's
+authenticity rests on that channel to NVIDIA, and there is no MITM
+position to swap it. Re-checking the JWT signature against NVIDIA's JWKS
+is sound hardening for anyone writing their own verifier, but its absence
+is not a soundness break given the TLS channel. (Originally filed as
+High; corrected here.)
 
 **Location:** `py/model_verifier.py:37-39, 129-149`, mirrored in
 `ts/model_verifier.ts`.
@@ -546,7 +562,7 @@ detect this — but N-2 means the detection is printed, not enforced.
 
 | # | Title | Severity | Root cause | One-line fix |
 |---|-------|----------|------------|--------------|
-| N-1 | NRAS JWT signature unverified | High | `base64url_decode_jwt_payload` skips signature | Fetch JWKS, verify JWT |
+| N-1 | NRAS JWT signature unverified | Low / defense-in-depth (NRAS fetched over CA-verified TLS) | `base64url_decode_jwt_payload` skips signature | Fetch JWKS, verify JWT (hardening) |
 | N-2 | GPU nonce mismatch is informational | Medium | `check_gpu` doesn't raise on mismatch | Raise / propagate failure |
 | N-3 | `OutOfDate` TDX accepted as pass | Medium | Allowlist includes both | Default-reject; opt-in flag |
 | N-4 | `CERT_NONE` in tls_verifier | Acknowledged | Single-socket fetch carries the safety | Pin `signing_address` |

@@ -427,6 +427,23 @@ attachment; the runnable PoCs under
 
 ## 4. NEAR AI Cloud
 
+> **Update after maintainer response (Pierre, 2026-06):** NEAR AI replied
+> substantively and established that the platform binds the tested
+> properties into the TEE evidence — model identity via
+> `mr_config_id` = 01‖SHA256(app_compose) with Sigstore-pinned image
+> digests; the NRAS verdict over CA-verified TLS to NVIDIA; the TLS
+> fingerprint in `report_data`; and a shared nonce + compose across the
+> CPU and GPU attestations. We accept these corrections:
+> **the "no model binding" finding (N-1's model-identity sibling) is
+> withdrawn** (model identity is bound, in an MR register not
+> `report_data`), and **N-1 (NRAS JWT) is downgraded to defense-in-depth**
+> (no MITM position; the client fetches the verdict over CA-verified TLS).
+> The remaining findings are recast as **under-enforcement in the
+> published verification client** (shipped as "Cryptographic Verification
+> Tools"): it prints checks rather than failing closed, gates channel
+> binding behind opt-in flags, and does not enforce the GPU-nonce match.
+> The original email below is preserved as sent.
+
 **To:** [security@near.ai or as listed at
         `https://near.ai/security` / `cloud.near.ai/security`]
 **Subject:** Multiple soundness findings in NEAR AI Cloud
