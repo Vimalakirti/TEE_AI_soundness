@@ -1,10 +1,23 @@
 # TEE-AI Attestation: A PoC-Backed Attack Catalog
 
-**Purpose.** Map the nineteen runnable attack demonstrations in
+> **Revision note (post-disclosure, 2026-06).** Vendor responses revised this
+> catalog. **NEAR AI Attack 2 ("no model-identity binding") is WITHDRAWN:** the
+> maintainer showed model identity is bound via `mr_config_id` =
+> 01‖SHA256(app_compose) with Sigstore-pinned image digests, so the F1 claim
+> does not hold. There are **19 demo scripts on disk but 18 standing findings**
+> (Attack 2 withdrawn) — counts of "nineteen" below refer to the demo set; the
+> standing count is **18**. **Strict model switching now covers Attacks 1 and 3
+> only.** NEAR AI's NRAS-JWT finding (N-1) is **downgraded to defense-in-depth**
+> (the client fetches the verdict over CA-verified TLS, so there is no MITM
+> position). $F_1$ is now anchored by Laminator's argv PoC, with A3S/Power's
+> `A3S_TEE_SIMULATE` flag as a second instance (a documented finding, not a
+> separate PoC).
+
+**Purpose.** Map the runnable attack demonstrations in
 this workspace to the F1–F9 failure-mode taxonomy from
-`unified_tee_ai_attestation_soundness.md`. Distinguish the three
+`unified_tee_ai_attestation_soundness.md`. Distinguish the
 attacks that are *strict model switching* (identity field constant,
-model fluid) from the eight sibling attacks that achieve a similar
+model fluid; Attacks 1 and 3) from the sibling attacks that achieve a similar
 end-effect through different mechanisms or address adjacent
 failure modes.
 
@@ -90,8 +103,9 @@ pickle twice, Power minijinja).
 > produces inference output.
 
 This is a property: *identity field invariant, behaviour fluid*.
-Three of the nineteen attacks below (Attacks 1, 2, 3) satisfy it
-directly. The other sixteen either change the identity field
+Two standing attacks (Attacks 1 and 3) satisfy it directly; Attack 2 was
+withdrawn on NEAR AI's response (model identity is bound via `mr_config_id`).
+The remaining attacks either change the identity field
 (and rely on the verifier not pinning it), attack a different
 layer entirely (channel binding, build-time identity, sampling
 regime, release currency, prompt rendering, cross-component
@@ -105,7 +119,7 @@ trust gap to forge a non-identity content field.
 | # | Attack | System | PoC | Taxonomy | Strict switching? |
 |---|---|---|---|---|---|
 | 1 | Switchable pickle loader | Laminator | `laminator_poc_dishonest_prover/demo_model_switching.py` | **F4 + F5** | **YES** |
-| 2 | No model-identity binding | nearai-cloud-verifier | `nearai_poc_dishonest_prover/demo_no_model_binding.py` | **F1** | **YES** |
+| 2 | No model-identity binding *(WITHDRAWN — model is bound via `mr_config_id`+compose; see revision note)* | nearai-cloud-verifier | `nearai_poc_dishonest_prover/demo_no_model_binding.py` | ~~F1~~ | ~~YES~~ |
 | 3 | Stale attestation cache | A3S Power | `power_poc_dishonest_prover/src/main.rs` | **F5** | **YES** |
 | 4 | Build-time identity forgery | modelwrap | `modelwrap_poc_dishonest_prover/demo_skip_attack.py` | F5 (build-time) | sibling |
 | 5 | Opt-in policy default | EphemeralML | `ephemeralml_poc_dishonest_prover/src/main.rs` | F2 | sibling |
@@ -124,9 +138,9 @@ trust gap to forge a non-identity content field.
 | 18 | CPU↔GPU chain unbound | NEAR AI | `nearai_poc_dishonest_prover/demo_cpu_gpu_chain_unbound.py` | F8 (second system) | sibling |
 | 19 | Conversation-history injection | NEAR AI | `nearai_poc_dishonest_prover/demo_history_injection.py` | F9 (second system) | sibling |
 
-The three "strict" rows are the paper's headline material; the
-sixteen "sibling" rows are real findings that round out the
-F1–F9 coverage but should not be presented as model switching.
+The two standing "strict" rows (Attacks 1 and 3; Attack 2 withdrawn) are the
+paper's headline material; the "sibling" rows are real findings that round out
+the F1–F9 coverage but should not be presented as model switching.
 
 Attacks 10 and 11 were added specifically to close the
 *"≥2 systems per failure mode"* requirement for F4 and F3:
@@ -158,19 +172,19 @@ anchored across ≥2 surveyed systems. The new anchors:
 
 | F-class | Original anchor | Second anchor (Attacks 14–19) |
 |---|---|---|
-| F1 | nearai (#2, no model_hash slot) | Laminator (#14, argv unmeasured) |
+| F1 | ~~nearai (#2)~~ *withdrawn* | Laminator (#14, argv unmeasured); A3S/Power `A3S_TEE_SIMULATE` (instance) |
 | F2 | EphemeralML (#5, `AirVerifyPolicy::default`) | Power (#15, `hardware_verifier: None`) |
 | F6 | nearai (#8, `tls_verifier.py` opt-in) | EphemeralML (#16, signing-key chain unbound) |
 | F7 | EphemeralML (#9, AIR v1 no sampling fields) | NEAR AI (#17, signed text has no sampling slot) |
 | F8 | Power (#12, no NRAS-verdict-hash in report_data) | NEAR AI (#18, NRAS verdict reused across TDX quotes) |
 | F9 | EphemeralML (#13, RAG injection) | NEAR AI (#19, conversation-history injection) |
 
-Together: 19 runnable PoCs, every F-class anchored by ≥2 systems,
+Together: 18 standing PoCs (19 demo scripts, Attack 2 withdrawn); most F-classes anchored by ≥2 systems ($F_1$ now Laminator + A3S/Power's `A3S_TEE_SIMULATE` instance),
 6 systems covered, all original system trees untouched.
 
 ---
 
-## 3. The three strict model-switching attacks
+## 3. The strict model-switching attacks (Attacks 1 and 3; Attack 2 withdrawn)
 
 ### Attack 1 — Switchable pickle loader (Laminator)
 
@@ -218,7 +232,14 @@ named-helper form is equivalent for the cryptographic claim.
 
 ---
 
-### Attack 2 — No model-identity binding (nearai-cloud-verifier)
+### Attack 2 — No model-identity binding (nearai-cloud-verifier) — WITHDRAWN
+
+> **WITHDRAWN (2026-06, after the maintainer's response).** Model identity
+> *is* bound, via the TDX register `mr_config_id` = 01‖SHA256(app_compose)
+> with Sigstore-pinned image digests; `report_data` carries the runtime key
+> and nonce by design. The F1 "no model binding" claim does not hold, and this
+> attack is removed from the standing inventory. The text below is retained for
+> the record.
 
 **System.** `github.com/nearai/nearai-cloud-verifier` (client-side
 verifier for `cloud-api.near.ai`). Intel TDX gateway + NVIDIA H100
@@ -958,7 +979,7 @@ Release currency (which version of the prover code is "now")
 
 | Class | Attacks | Systems with PoCs | Other systems with ≥M severity in §4 matrix |
 |---|---|---|---|
-| F1 missing binding | 2, **14** | nearai, **Laminator** | modelwrap, Power, EphemeralML |
+| F1 missing binding | **14** (#2 nearai withdrawn) | **Laminator** | A3S/Power (`A3S_TEE_SIMULATE` instance) |
 | F2 opt-in policy | 5, **15** | EphemeralML, **Power** | nearai, Laminator |
 | F3 unauthenticated external | 6, 11 | nearai, Tinfoil SDK | Power (L), modelwrap (L) |
 | F4 trusted code interprets attacker inputs | 1, 7, 10 | Laminator, Power (narrow) | — |
@@ -1048,8 +1069,9 @@ behavior measurement" property the paper takes as its kernel.
 
 ### Headline
 
-Three strict model-switching demonstrations (Attacks 1, 2, 3) form
-the core "look at this empirical regularity" claim:
+Two standing strict model-switching demonstrations (Attacks 1 and 3;
+Attack 2 withdrawn on NEAR AI's response) form the core "look at this
+empirical regularity" claim:
 
 - The same identity-vs-bytes desynchronization happens via three
   *completely different* mechanisms (deserialization-time RCE,
@@ -1082,8 +1104,8 @@ contributions.
 ### What the title should *not* be
 
 - ❌ "Model Switching in TEE-AI Attestation Systems" — invites
-  challenge on Attacks 4–19 (sixteen of nineteen are not strict
-  switching).
+  challenge on the sibling attacks (sixteen of the eighteen standing
+  attacks are not strict switching).
 - ❌ "Soundness of Confidential ML Inference" — too vague.
 - ✅ "Soundness Gaps in TEE-Based AI Attestation: Nine Failure
   Modes Across Six Systems" — accurate (seven for the single-
@@ -1099,7 +1121,7 @@ contributions.
 | # | Attack | Built | Runs end-to-end | Original system untouched |
 |---|---|---|---|---|
 | 1 | Switchable pickle loader | ✓ | ✓ | ✓ |
-| 2 | No model-identity binding | ✓ | ✓ (against mock) | ✓ |
+| 2 | No model-identity binding *(WITHDRAWN — model bound via `mr_config_id`)* | ✓ | ✓ (against mock) | ✓ |
 | 3 | Stale attestation cache | ✓ | ✓ (function-level) | ✓ |
 | 4 | Build-time identity forgery | ✓ | ✓ | ✓ |
 | 5 | Opt-in policy default | ✓ | ✓ | ✓ |

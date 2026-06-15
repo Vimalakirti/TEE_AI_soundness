@@ -188,19 +188,20 @@ payload section** of the JWT and reads `x-nvidia-overall-att-result`.
 JWT signature verification — checking the `<sig>` against NVIDIA's
 JWKs — is never performed.
 
-**What the attacker can do:**
+**What the attacker can do (corrected after the maintainer's response):**
 
-- Operate a MITM between the user and NRAS (or replace
-  `GPU_VERIFIER_API` in a hostile fork) and return any JSON body
-  containing `[[k, "<arbitrary-jwt-with-x-nvidia-overall-att-result:MATCH>"]]`.
-  The JWT header and signature can be empty strings; only the middle
-  segment is parsed.
-- Even without MITM, the prover (cloud-api.near.ai) controls the
-  `nvidia_payload` it returns. If NRAS rejects a bad payload, the
-  prover can return a payload that NRAS will accept *for a different,
-  unrelated GPU*, then forward that JWT to the client. The client has
-  no way to verify the JWT contents bind to this request because the
-  signature is not checked.
+- The MITM scenario originally described here **does not apply**: the
+  client fetches the verdict from `nras.attestation.nvidia.com` over
+  **CA-verified TLS**, so a network attacker cannot swap the JSON body,
+  and a hostile fork replacing `GPU_VERIFIER_API` is out of the
+  threat model (it is the user's own client). The JWKS check is sound
+  hardening but its absence is not a soundness break.
+- The residual, narrower point is freshness/binding, not authenticity:
+  the verifier does not enforce that the GPU payload's nonce matches the
+  request nonce (it prints it; see N-2), so a stale-but-NRAS-signed
+  payload for an unrelated GPU could be replayed. That is an
+  under-enforcement gap in the client, addressed by N-2, not by a JWT
+  signature check.
 
 **What the verifier cannot detect:** The cryptographic NRAS-vouches-for-this
 chain is not authenticated end-to-end; the verifier trusts whatever

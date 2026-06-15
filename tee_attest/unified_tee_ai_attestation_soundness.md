@@ -1,5 +1,17 @@
 # A Unified View of Soundness Gaps in TEE-Based AI Attestation Systems
 
+> **Revision note (post-disclosure, 2026-06).** Vendor responses revised the
+> NEAR AI items: the **"no model-identity binding" attack (F1) is withdrawn**
+> (model identity is bound via `mr_config_id` = 01‖SHA256(app_compose) with
+> Sigstore-pinned image digests), and **N-1 (NRAS JWT) is downgraded to
+> defense-in-depth** (the client fetches the verdict over CA-verified TLS).
+> The **standing PoC count is 18** (19 demo scripts on disk; one withdrawn);
+> mentions of "nineteen"/"19 PoCs" below refer to the demo set. $F_1$ is now
+> anchored by Laminator (with A3S/Power's `A3S_TEE_SIMULATE` flag as a second
+> instance). NEAR AI's remaining findings are recast as under-enforcement in
+> its published verification client (advertised as "Cryptographic Verification
+> Tools").
+
 **Status:** Working synthesis across six systems we have examined in
 detail. Not yet a paper — the framing below is the candidate
 backbone of one. Reviewers should expect the empirical regularities
@@ -584,10 +596,11 @@ J5: external evidence)**
 - *Trust property created.* "The (request, response) pair I see
   is what the attested enclave actually processed."
 - *Where attacks fire.*
-  - **Attack 2 (nearai F1 — no model binding).** The verifier
-    looks for a field that names the model weights and doesn't
-    find one. Whatever the enclave was running, the attestation
-    is silent about it.
+  - **Attack 2 (nearai F1 — no model binding) — WITHDRAWN.** The
+    `report_data` buffer names no model weights, but model identity
+    is bound elsewhere (the `mr_config_id` register over the
+    Sigstore-pinned compose), so this attack does not hold and is
+    withdrawn (see revision note).
   - **Attack 5 (EphemeralML F2) lands here too.** The default
     policy passes any model_hash and any model_id because the
     `expected_*` fields are `None`.

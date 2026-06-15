@@ -1,5 +1,12 @@
 # Model Switching Across TEE-AI Attestation Systems
 
+> **Revision note (post-disclosure, 2026-06):** The **NEAR AI cloud-verifier
+> case is withdrawn** as a model-switching instance — the maintainer showed
+> model identity *is* bound, via `mr_config_id` = 01‖SHA256(app_compose) with
+> Sigstore-pinned image digests. Strict model switching is demonstrated by
+> Laminator (§2) and A3S/Power (§3); the NEAR AI rows/bullets below are
+> struck/corrected.
+
 **Purpose:** A consolidated implementation reference for the *model-
 switching* attack class across the five systems surveyed in this
 workspace. Used as the source-of-truth when (a) building PoCs and
@@ -36,7 +43,7 @@ Different systems space *T* and *T + δ* differently:
 | File hash at unpickle (Laminator) | Bytes returned by `__reduce__` | µs |
 | Registration / boot (Power, EphemeralML) | Every subsequent `ensure_loaded` | up to hours |
 | Build time (modelwrap, downstream CVM image baking) | Runtime block reads (dm-verity-protected) | 0 if Merkle tree intact |
-| Never (nearai cloud-api) | Whatever the container loads | ∞ |
+| ~~Never (nearai cloud-api)~~ *withdrawn: bound at compose via `mr_config_id`* | image bytes pinned by `@sha256` | 0 if compose matches |
 
 The four mechanisms reduce to four failure modes:
 
@@ -46,8 +53,10 @@ The four mechanisms reduce to four failure modes:
 2. **Opt-in policy:** identity is bound correctly, but the verifier
    defaults to skipping the check that connects it to a pinned
    expected value. (EphemeralML E-1.)
-3. **Missing binding:** no field in the attestation refers to model
-   bytes at all. (nearai-cloud-verifier — see N-1 framing.)
+3. **Missing binding:** ~~no field in the attestation refers to model
+   bytes at all.~~ *(Withdrawn for nearai-cloud-verifier: model identity
+   is bound via `mr_config_id` + Sigstore-pinned compose digests. Retained
+   only as a hypothetical failure mode, not a NEAR AI instance.)*
 4. **Build-layer forgery:** runtime identity is strong (dm-verity)
    but the build tool that mints it trusts host-supplied state.
    (modelwrap M-1.)
