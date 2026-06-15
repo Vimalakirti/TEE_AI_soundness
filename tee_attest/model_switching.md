@@ -885,10 +885,10 @@ The taxonomy in §1 (stale-cache / opt-in / missing / build-layer)
 maps cleanly onto Findings F1–F5 from
 `unified_tee_ai_attestation_soundness.md`:
 
-- Stale-cache ↔ F5
-- Opt-in policy ↔ F2
+- Stale-cache ↔ F2
+- Opt-in policy ↔ F3
 - Missing binding ↔ F1 (configuration-as-input, taken to the limit)
-- Build-layer forgery ↔ F5 (build-time variant)
+- Build-layer forgery ↔ F2 (build-time variant)
 
 Model switching is the most concrete instantiation of "identity
 computed at *T*, bytes at *T + δ*, not relinked." That phrasing

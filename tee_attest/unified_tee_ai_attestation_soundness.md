@@ -41,7 +41,7 @@ of those services.
 - `attack_catalog.md` — catalogs the nineteen runnable PoCs, one
   per attack instance, mapped to the F1–F9 taxonomy defined here.
   **Every F-class is anchored by ≥2 PoCs across ≥2 surveyed
-  systems** (F4 has 3 PoCs).
+  systems** (F5 has 3 PoCs).
   Read this doc for the taxonomy and cross-system synthesis; read
   the catalog for "which file demonstrates which gap, and what
   exactly does running it show."
@@ -221,8 +221,8 @@ lands. Reading them in order from operator to verifier:
 - **J1 — Runtime disk reads → in-enclave state
   (`Untrusted host → R`).** After boot, the enclave reads model
   weights, config, ACME keys, etc. The bytes on disk are not
-  measured; the in-enclave code is supposed to hash them. **F5
-  (cached / stale)** and **F4 (behavior not bounded by the
+  measured; the in-enclave code is supposed to hash them. **F2
+  (cached / stale)** and **F5 (behavior not bounded by the
   measurement)** soundness gaps live here.
 
 - **J2 — In-enclave binding (`R → A.user_data`).** The enclave
@@ -243,7 +243,7 @@ lands. Reading them in order from operator to verifier:
   policy against the claim fields (J4c), and later verifies the
   per-request receipt against the session pubkey extracted from
   user_data (J4d, revisited at Stage 8). This is the inflection
-  point where hardware trust becomes software trust. **F2 (opt-in
+  point where hardware trust becomes software trust. **F3 (opt-in
   policy)** soundness gaps live in J4c and J4d: the verifier *can*
   pin every claim but isn't forced to. **F1** gaps surface here
   because the verifier reads as authoritative whatever the
@@ -253,7 +253,7 @@ lands. Reading them in order from operator to verifier:
 - **J5 — External-evidence consumption (`Network → V.A`).** The
   verifier needs vendor cert chains, code-measurement allowlists
   (Sigstore), GPU attestation verdicts (NRAS). Each is a separate
-  signed artefact the verifier must verify on its own. **F3
+  signed artefact the verifier must verify on its own. **F4
   (unauthenticated external)** soundness gaps live here.
 
 - **J6 — Live channel pinning (`V → R via TLS / HPKE`).** Once the
@@ -295,7 +295,7 @@ sequenceDiagram
 
     Note over Op,Disk: Stage 0a — Auxiliary artefact build (e.g. modelwrap)
     Op->>Op: download model, run mkfs.erofs + veritysetup<br/>→ produce (.mpk, .info root hash) pair
-    Note over Op,Disk: Attack 4 (modelwrap, F5-build) fires HERE:<br/>idempotency-skip emits attacker-chosen root hash
+    Note over Op,Disk: Attack 4 (modelwrap, F2-build) fires HERE:<br/>idempotency-skip emits attacker-chosen root hash
 
     Note over Op,Disk: Stage 0b — CVM image build
     Op->>Op: bake (kernel, initrd, rootfs, enclave bin, 0a root hash)<br/>→ produce signed CVM image whose hash = launch MEASUREMENT
@@ -311,8 +311,8 @@ sequenceDiagram
     Enc->>Disk: read model file
     Disk-->>Enc: model bytes
     Enc->>Enc: torch.load / safetensors / GGUF parse
-    Note over Enc: Attack 1, 7 fire here (F4 — pickle RCE)
-    Note over Enc: Attack 10 fires here (F4-narrow — Jinja in GGUF meta)
+    Note over Enc: Attack 1, 7 fire here (F5 — pickle RCE)
+    Note over Enc: Attack 10 fires here (F5-narrow — Jinja in GGUF meta)
     Enc->>Enc: compute model_hash; cache it in manifest
 
     Note over Enc,HW: Stage 3 — Attestation generation (J2 → J3)
@@ -328,11 +328,11 @@ sequenceDiagram
     V->>Ext: fetch expected code measurement (Sigstore)
     Ext-->>V: Sigstore bundle
     V->>V: verify Sigstore bundle, extract codeMeasurement
-    Note over V,Ext: Attack 6 (nearai NRAS JWT, F3): the NVIDIA<br/>side of this fetch is unverified
-    Note over V,Ext: Attack 11 (Tinfoil rollback, F3): the<br/>github-proxy.tinfoil.sh side is unverified
+    Note over V,Ext: Attack 6 (nearai NRAS JWT, F4): the NVIDIA<br/>side of this fetch is unverified
+    Note over V,Ext: Attack 11 (Tinfoil rollback, F4): the<br/>github-proxy.tinfoil.sh side is unverified
     V->>V: MEASUREMENT == expected?
     V->>V: report_data fields match policy?
-    Note over V: Attack 5 (EphemeralML default policy, F2):<br/>policy may default to skipping pins
+    Note over V: Attack 5 (EphemeralML default policy, F3):<br/>policy may default to skipping pins
 
     Note over V,Enc: Stage 5 — Live channel binding (J6)
     V->>Enc: open TLS / HPKE connection
@@ -342,7 +342,7 @@ sequenceDiagram
     Note over V,Enc: Stage 6 — Per-request processing (J1 revisited)
     V->>Enc: POST /v1/chat/completions { messages, sampling_params }
     Enc->>Enc: ensure_loaded(model) — may re-read file from disk
-    Note over Enc,Disk: Attack 3 fires here (F5 — file swap between<br/>registration and load; cached manifest.sha256<br/>masks the change if model_hashes unset)
+    Note over Enc,Disk: Attack 3 fires here (F2 — file swap between<br/>registration and load; cached manifest.sha256<br/>masks the change if model_hashes unset)
     Enc->>Enc: render chat template (operator-supplied)
     Note over Enc: Attack 10 also has runtime effect here<br/>(rendered prompt is the attacker's, not the user's)
     Enc->>Enc: sample with temperature / top_p / seed
@@ -396,7 +396,7 @@ cryptographically inside the 0b measurement.
   AND the model-identity binding committed to in 0a are what was
   hashed at 0b. dm-verity will refuse to serve any block that
   doesn't match."
-- *Where attacks fire.* **Attack 4 (modelwrap F5-build).** The 0a
+- *Where attacks fire.* **Attack 4 (modelwrap F2-build).** The 0a
   build tool is itself operator-controlled. modelwrap's
   idempotency-skip lets a malicious builder pre-place an arbitrary
   `<commit>.mpk` + `<commit>.info` pair *before* running modelwrap;
@@ -453,14 +453,14 @@ in-enclave binding setup)**
   left in plaintext. The model_hash committed downstream is
   faithful to the bytes the enclave loaded."
 - *Where attacks fire.*
-  - **Attack 1, 7 (Laminator F4 — pickle RCE).** `torch.load`
+  - **Attack 1, 7 (Laminator F5 — pickle RCE).** `torch.load`
     deserialises pickle from a host-supplied `.pth` file. A
     `__reduce__` payload runs arbitrary code inside the enclave
     *at parse time*, before `load_state_dict` is even called.
     Attack 7 uses this to hot-patch `utils.test` (metric forgery);
     Attack 1's switchable variant uses it to read a side-channel
     file on every load.
-  - **Attack 10 (Power F4-narrow — Jinja).** GGUF model files
+  - **Attack 10 (Power F5-narrow — Jinja).** GGUF model files
     contain `tokenizer.chat_template` metadata. Power's
     `chat_template::render_jinja` evaluates that template through
     minijinja. The sandbox prevents shell execution but doesn't
@@ -502,17 +502,17 @@ J5: external evidence)**
   user_data is the one the enclave generated; the model_hash
   bound there is what the enclave saw."
 - *Where attacks fire.*
-  - **Attack 6 (nearai F3 — NRAS JWT).** The verifier reads NVIDIA's
+  - **Attack 6 (nearai F4 — NRAS JWT).** The verifier reads NVIDIA's
     verdict out of a JWT without verifying its signature against
     NVIDIA's JWKS. An attacker who can interpose between the
     verifier and `nras.attestation.nvidia.com` returns any verdict.
-  - **Attack 11 (Tinfoil F3 — proxy rollback).** Tinfoil's SDK
+  - **Attack 11 (Tinfoil F4 — proxy rollback).** Tinfoil's SDK
     routes every "current release of repo X" query through
     `github-proxy.tinfoil.sh`. The Sigstore bundle's signature is
     verified downstream, but the bundle the SDK ends up verifying
     is whatever the proxy returned. A malicious proxy serves a
     historically-valid old bundle and the SDK pins to it.
-  - **Attack 5 (EphemeralML F2 — opt-in policy).** Even when
+  - **Attack 5 (EphemeralML F3 — opt-in policy).** Even when
     the verifier *can* pin every claim,
     `AirVerifyPolicy::default()` leaves expected_* fields as
     `None`. The corresponding policy checks return `Skip`, which
@@ -550,7 +550,7 @@ J5: external evidence)**
 - *Trust property created (or expected).* "Inference uses the
   same bytes the enclave bound into `user_data` at Stage 3."
 - *Where attacks fire.*
-  - **Attack 3 (Power F5 — stale cache).** Between Stage 2's
+  - **Attack 3 (Power F2 — stale cache).** Between Stage 2's
     file-read-and-hash and Stage 6's re-read, the operator can
     overwrite the file on the host's backing storage. Power's
     attestation endpoint returns `manifest.sha256` cached at
@@ -558,7 +558,7 @@ J5: external evidence)**
     (`model_hashes` config). With default deployment, the
     backend serves attacker bytes while the attestation endpoint
     keeps reporting the original hash.
-  - **Attack 10 (Power F4-narrow) revisited at runtime.** The
+  - **Attack 10 (Power F5-narrow) revisited at runtime.** The
     Jinja chat template loaded at Stage 2 runs here against the
     user's actual messages. A malicious template rewrites the
     system prompt and injects suffixes per request.
@@ -601,7 +601,7 @@ J5: external evidence)**
     is bound elsewhere (the `mr_config_id` register over the
     Sigstore-pinned compose), so this attack does not hold and is
     withdrawn (see revision note).
-  - **Attack 5 (EphemeralML F2) lands here too.** The default
+  - **Attack 5 (EphemeralML F3) lands here too.** The default
     policy passes any model_hash and any model_id because the
     `expected_*` fields are `None`.
   - **Attack 9 (EphemeralML F7) lands here.** A verifier that
@@ -634,17 +634,17 @@ option if the operator can't be constrained.
 
 | # | Attack | F-class | Setup (when, what) | Trigger (when, what) | Consequence (verifier-observable) |
 |---|---|---|---|---|---|
-| 1 | Laminator switchable | F4 + F5 | Stage 0/1: operator places evil `census_model.pth` at `./saved_models/` AND a real state_dict at the side-channel path | Stage 2: `torch.load` evaluates the pickle's `__reduce__`, which reads the side-channel and returns its state_dict | Stage 4: attestation `name` field constant across requests; side-channel can be swapped between requests with no field change |
+| 1 | Laminator switchable | F5 + F2 | Stage 0/1: operator places evil `census_model.pth` at `./saved_models/` AND a real state_dict at the side-channel path | Stage 2: `torch.load` evaluates the pickle's `__reduce__`, which reads the side-channel and returns its state_dict | Stage 4: attestation `name` field constant across requests; side-channel can be swapped between requests with no field change |
 | 2 | nearai no model binding | F1 *(withdrawn)* | — | — | **Withdrawn after maintainer response (2026-06): model identity IS bound, via `mr_config_id` = 01‖SHA256(app_compose) with Sigstore-pinned image digests; `report_data` carries the runtime key + nonce by design.** |
-| 3 | Power stale cache | F5 | Stage 2: legitimate boot caches `manifest.sha256 = H_good`. Operator overwrites the file on the host's virtio-blk backing store at some later point | Stage 6: `keep_alive` expires or LRU forces re-load; backend reads new bytes; load-time hash check is skipped because `model_hashes` config is unset | Stage 4: `/v1/attestation` still returns `H_good` (cached). Stage 6's inference output reflects the swapped bytes |
-| 4 | modelwrap build forgery | F5-build | Stage 0a (before modelwrap runs): operator pre-places attacker-chosen `<commit>.mpk` + `<commit>.info` in the modelwrap output dir | Stage 0a: modelwrap's idempotency-skip exits 0 without invoking mkfs.erofs or veritysetup. Stage 0b: cvmimage bakes the attacker's root hash into the CVM image. Stage 1: hardware computes MEASUREMENT including that root hash. Stage 6: inference runs over dm-verity-mounted attacker bytes | Stage 4: verifier compares MEASUREMENT to a Tinfoil-published allowlist that includes the attacker's measurement (operator is the trust root for both sides) |
-| 5 | EphemeralML opt-in policy | F2 | Stage 0: verifier deployment chooses `AirVerifyPolicy::default()` — every `expected_*` field is `None` | Stage 7: enclave honestly produces a receipt binding its own `model_hash` | Stage 8: receipt verifies under default policy regardless of which model_hash it carries; the MHASH check returns Skip, which isn't critical |
-| 6 | nearai NRAS JWT | F3 | Stage 4 (concurrent): operator routes the verifier's NRAS fetch through a malicious endpoint OR returns a stale `nvidia_payload` the real NRAS will sign | Stage 4: verifier calls `base64url_decode_jwt_payload` on the returned JWT and reads its payload segment without checking the signature | Stage 4: verifier prints `NVIDIA attestation verdict: <whatever the operator chose>` |
-| 7 | Laminator metric forgery | F4 | Stage 0/1: operator places evil `census_model.pth` whose pickle `__reduce__` patches `utils.test` to return a constant | Stage 2: `torch.load` runs the patch. Stage 6: `accuracy_attestation` calls `utils.test(...)` which returns the constant; payload built with that value | Stage 4: `output_accuracy.json` reports `"value": 0.99` for a random-init model. The Intel-signed SGX quote honestly commits to that payload |
+| 3 | Power stale cache | F2 | Stage 2: legitimate boot caches `manifest.sha256 = H_good`. Operator overwrites the file on the host's virtio-blk backing store at some later point | Stage 6: `keep_alive` expires or LRU forces re-load; backend reads new bytes; load-time hash check is skipped because `model_hashes` config is unset | Stage 4: `/v1/attestation` still returns `H_good` (cached). Stage 6's inference output reflects the swapped bytes |
+| 4 | modelwrap build forgery | F2-build | Stage 0a (before modelwrap runs): operator pre-places attacker-chosen `<commit>.mpk` + `<commit>.info` in the modelwrap output dir | Stage 0a: modelwrap's idempotency-skip exits 0 without invoking mkfs.erofs or veritysetup. Stage 0b: cvmimage bakes the attacker's root hash into the CVM image. Stage 1: hardware computes MEASUREMENT including that root hash. Stage 6: inference runs over dm-verity-mounted attacker bytes | Stage 4: verifier compares MEASUREMENT to a Tinfoil-published allowlist that includes the attacker's measurement (operator is the trust root for both sides) |
+| 5 | EphemeralML opt-in policy | F3 | Stage 0: verifier deployment chooses `AirVerifyPolicy::default()` — every `expected_*` field is `None` | Stage 7: enclave honestly produces a receipt binding its own `model_hash` | Stage 8: receipt verifies under default policy regardless of which model_hash it carries; the MHASH check returns Skip, which isn't critical |
+| 6 | nearai NRAS JWT | F4 | Stage 4 (concurrent): operator routes the verifier's NRAS fetch through a malicious endpoint OR returns a stale `nvidia_payload` the real NRAS will sign | Stage 4: verifier calls `base64url_decode_jwt_payload` on the returned JWT and reads its payload segment without checking the signature | Stage 4: verifier prints `NVIDIA attestation verdict: <whatever the operator chose>` |
+| 7 | Laminator metric forgery | F5 | Stage 0/1: operator places evil `census_model.pth` whose pickle `__reduce__` patches `utils.test` to return a constant | Stage 2: `torch.load` runs the patch. Stage 6: `accuracy_attestation` calls `utils.test(...)` which returns the constant; payload built with that value | Stage 4: `output_accuracy.json` reports `"value": 0.99` for a random-init model. The Intel-signed SGX quote honestly commits to that payload |
 | 8 | nearai channel unbound | F6 | Stage 0: operator publishes an attestation that names key `K_A` in `tls_cert_fingerprint`, but operates a TLS terminator on key `K_B` between client and enclave | Stage 5: verifier (with default flow, no `--verify-tls`) opens TLS to the terminator. Stage 4 still passes (the attestation's internal consistency is honest about `K_A`). The default flow never compares live cert to `K_A` | Stage 6: chat traffic terminates at the operator's MITM; plaintext visible to the operator |
 | 9 | EphemeralML sampling | F7 | Stage 0: no setup needed — the AIR v1 CDDL ships without sampling fields | Stage 6: operator chooses `temperature` / `top_p` / `seed` per request, varies them | Stage 8: receipt verifies under any policy (default or strict); `response_hash` is honest but no field tells the verifier the response came from non-default sampling |
-| 10 | Power minijinja | F4-narrow | Stage 0: operator ships a malicious chat-template inside GGUF metadata | Stage 2: template loaded into minijinja env. Stage 6: every chat request renders user messages through the malicious template — system prompt overwritten, jailbreak suffix injected | Stage 8: receipt's `request_hash`, `response_hash`, `model_hash` are all honest; rendered prompt isn't covered by any claim |
-| 11 | Tinfoil rollback | F3 | Stage 0 (long ago): a previous Tinfoil release was signed by their CI. The historical bundle still exists. Stage 4 (now): operator configures `github-proxy.tinfoil.sh` to return that old release as "current" | Stage 4: SDK fetches latest tag / digest / bundle through the proxy. The proxy returns the historical triple. SDK calls `sigstoreClient.VerifyAttestation(bundle, repo, digest)` against the embedded trust root; Sigstore passes (the historical bundle was honestly signed at the time) | Stage 4: verifier pins MEASUREMENT to whatever the old release's code-measurement was, even though a newer release exists |
+| 10 | Power minijinja | F5-narrow | Stage 0: operator ships a malicious chat-template inside GGUF metadata | Stage 2: template loaded into minijinja env. Stage 6: every chat request renders user messages through the malicious template — system prompt overwritten, jailbreak suffix injected | Stage 8: receipt's `request_hash`, `response_hash`, `model_hash` are all honest; rendered prompt isn't covered by any claim |
+| 11 | Tinfoil rollback | F4 | Stage 0 (long ago): a previous Tinfoil release was signed by their CI. The historical bundle still exists. Stage 4 (now): operator configures `github-proxy.tinfoil.sh` to return that old release as "current" | Stage 4: SDK fetches latest tag / digest / bundle through the proxy. The proxy returns the historical triple. SDK calls `sigstoreClient.VerifyAttestation(bundle, repo, digest)` against the embedded trust root; Sigstore passes (the historical bundle was honestly signed at the time) | Stage 4: verifier pins MEASUREMENT to whatever the old release's code-measurement was, even though a newer release exists |
 
 **Reading the table.** Each row is one attack. Reading
 left-to-right tells you the time-shape: when the operator has to
@@ -664,16 +664,16 @@ stage at a time, listing every attack that fires at that stage.
 
 | Stage | Joint | F-classes that can fire here | Attacks |
 |---|---|---|---|
-| 0a Build (artefact build, e.g., modelwrap) | (pre-launch) | F5-build | 4 |
+| 0a Build (artefact build, e.g., modelwrap) | (pre-launch) | F2-build | 4 |
 | 0b Build (CVM image) | (pre-launch) | — | — |
 | 1 Launch | J0 | F1 (unmeasured argv / env) | (background to 1, 7, 10) |
-| 2 Bootstrap | J1, J2 | F4 (deserialisation), F4-narrow (template load), F5 (cache write) | 1, 7, 10 |
+| 2 Bootstrap | J1, J2 | F5 (deserialisation), F5-narrow (template load), F2 (cache write) | 1, 7, 10 |
 | 3 Attestation gen | J2, J3 | F1 (echoed into user_data) | (background to all) |
-| 4 Verify attestation | J4, J5 | F2 (default policy), F3 (unauth. external), F3 (currency rollback) | 5, 6, 11 |
+| 4 Verify attestation | J4, J5 | F3 (default policy), F4 (unauth. external), F4 (currency rollback) | 5, 6, 11 |
 | 5 Live channel | J6 | F6 | 8 |
-| 6 Per-request | J1 revisited | F5 (cache read after swap), F4-narrow (template runtime), F7 (sampling regime), F1 (model the operator chose to load) | 3, 9, 10, (2 visible here) |
+| 6 Per-request | J1 revisited | F2 (cache read after swap), F5-narrow (template runtime), F7 (sampling regime), F1 (model the operator chose to load) | 3, 9, 10, (2 visible here) |
 | 7 Receipt gen | J7 | (no new attacks, but F7's *absence-of-field* is set in concrete here) | — |
-| 8 Verify receipt | J4 revisited | F1 (missing field), F2 (policy default), F7 (no field to pin) | 2, 5, 9 |
+| 8 Verify receipt | J4 revisited | F1 (missing field), F3 (policy default), F7 (no field to pin) | 2, 5, 9 |
 
 Reading the table top-to-bottom is the lifecycle. Reading it by
 F-class column tells you which stage to look at to find each
@@ -687,7 +687,7 @@ All six systems instantiate Stages 0–8, with these variations:
   EROFS root hash, baked into a downstream CVM. Power / EphemeralML
   / NEAR AI: Sigstore-attested OCI image digest. Tinfoil:
   GitHub-release-bundle digest published via the Tinfoil proxy.
-- **Stage 2's model loader.** Laminator: PyTorch pickle (the F4
+- **Stage 2's model loader.** Laminator: PyTorch pickle (the F5
   vector). Power, EphemeralML: GGUF / SafeTensors (closed binary
   formats). NEAR AI: closed source; presumed safetensors or
   similar.
@@ -730,11 +730,11 @@ inference call).
 
 | Class | One-line pattern | Joint(s) | Stage(s) where it fires | Verifier-observable consequence | Attack #s with PoC |
 |---|---|---|---|---|---|
-| F1 | Configuration is unmeasured and flows into the signed payload | J0, J2 | 1, 3, 8 | Verifier reads operator-typed strings as if they were measured | 2 (nearai no-binding), **14** (Laminator argv) |
-| F2 | Integrity / policy bindings are opt-in | J4c, J4d | 4, 8 | Default verifier passes without performing the check | 5 (EphemeralML default policy), **15** (Power `hardware_verifier: None`) |
-| F3 | External evidence is parsed without authenticating it | J5 | 4 | Verifier accepts forged or rolled-back third-party evidence | 6 (NRAS JWT), 11 (Tinfoil rollback) |
-| F4 | Measured code's behavior on attacker input escapes the measurement (interpret / corrupt / load-remote) | J1 → J2 | 2 (and 6 for runtime variants) | Measured code runs attacker logic (RCE, or sandboxed semantics-hijack) | 1, 7 (pickle), 10 (Jinja) |
-| F5 | Cached / registration-time state stands in for runtime state | J1, J2 ↔ J1 | 0a (build cache), 2 → 6 (runtime cache) | Attestation reports stale identity while runtime bytes have changed | 3 (runtime cache), 4 (build-time cache) |
+| F1 | Configuration is unmeasured and flows into the signed payload | J0, J2 | 1, 3, 8 | Verifier reads operator-typed strings as if they were measured | **14** (Laminator argv); A3S/Power `A3S_TEE_SIMULATE` (instance) — ~~2 (nearai)~~ withdrawn |
+| F2 | Cached / registration-time state stands in for runtime state | J1, J2 ↔ J1 | 0a (build cache), 2 → 6 (runtime cache) | Attestation reports stale identity while runtime bytes have changed | 3 (runtime cache), 4 (build-time cache) |
+| F3 | Integrity / policy bindings are opt-in | J4c, J4d | 4, 8 | Default verifier passes without performing the check | 5 (EphemeralML default policy), **15** (Power `hardware_verifier: None`) |
+| F4 | External evidence is parsed without authenticating it | J5 | 4 | Verifier accepts forged or rolled-back third-party evidence | 6 (NRAS JWT), 11 (Tinfoil rollback) |
+| F5 | Measured code's behavior on attacker input escapes the measurement (interpret / corrupt / load-remote) | J1 → J2 | 2 (and 6 for runtime variants) | Measured code runs attacker logic (RCE, or sandboxed semantics-hijack) | 1, 7 (pickle), 10 (Jinja) |
 | F6 | Live channel is unbound from the attestation | J6 | 5 | Verifier exchanges traffic with a different endpoint than the one it attested | 8 (nearai tls_verifier opt-in), **16** (EphemeralML signing-key chain) |
 | F7 | Output non-determinism is unattested | J7 (absence-of-field) | 6 → 7 → 8 | LLM operator varies sampling parameters per-request without the receipt noticing | 9 (EphemeralML AIR CDDL), **17** (NEAR AI signed text) |
 | F8 | Cross-component attestation chain unbound (vertical composition) | J5 + J7 (composition gap) | 4 (consume), 6 (execute) | Verifier accepts independently-valid attestations from CPU and GPU that were not actually paired in this computation | 12 (Power `build_report_data`), **18** (NEAR AI NRAS+TDX) |
@@ -762,27 +762,27 @@ form.
 others). Others *compose* — closing one without the other leaves
 the door open:
 
-- **F5 (cached) composes with F2 (opt-in).** Power's stale
+- **F2 (cached) composes with F3 (opt-in).** Power's stale
   attestation cache (Attack 3) is harmless if `model_hashes` is
-  pinned (closing F2); harmless if `/v1/attestation` re-hashes
-  (closing F5). The real-world deployment defaults break both, so
+  pinned (closing F3); harmless if `/v1/attestation` re-hashes
+  (closing F2). The real-world deployment defaults break both, so
   the attack works.
-- **F1 (unmeasured) composes with F2 (opt-in).** Power's
+- **F1 (unmeasured) composes with F3 (opt-in).** Power's
   `A3S_TEE_SIMULATE=1` flag (F1) is harmless if `VerifyOptions`
-  rejects `TeeType::Simulated` (closing F2). It doesn't by
+  rejects `TeeType::Simulated` (closing F3). It doesn't by
   default. EphemeralML's `mock` feature has the same shape.
-- **F3 (unauthenticated currency) composes with F5 (stale state).**
-  Tinfoil's `github-proxy.tinfoil.sh` rollback (F3) works because
-  `sigstore-go` doesn't enforce observer-timestamp freshness (F5).
+- **F4 (unauthenticated currency) composes with F2 (stale state).**
+  Tinfoil's `github-proxy.tinfoil.sh` rollback (F4) works because
+  `sigstore-go` doesn't enforce observer-timestamp freshness (F2).
   Closing either would close the attack.
-- **F4 (interpreter) composes with F1 (unmeasured input).**
+- **F5 (interpreter) composes with F1 (unmeasured input).**
   Power's minijinja template hijack (Attack 10) needs the
   template to be operator-supplied via GGUF metadata (F1) AND the
-  measured code to interpret it (F4). Closing either suffices.
-- **F8 (composition) composes with F3 (external evidence).**
-  A NRAS verdict properly signed by NVIDIA (closes F3 on that
+  measured code to interpret it (F5). Closing either suffices.
+- **F8 (composition) composes with F4 (external evidence).**
+  A NRAS verdict properly signed by NVIDIA (closes F4 on that
   evidence) still doesn't establish that *this* GPU ran *this*
-  computation — F8 lives one joint up. Closing F3 is necessary
+  computation — F8 lives one joint up. Closing F4 is necessary
   but not sufficient.
 - **F9 (application context) composes with F7 (sampling).**
   Even if the receipt commits to `(temperature, top_p, seed)`
@@ -794,20 +794,20 @@ the door open:
 
 **Alternatives, not compositions.**
 
-- **F4 RCE vs F4 sandboxed.** Laminator's pickle is full RCE
+- **F5 RCE vs F5 sandboxed.** Laminator's pickle is full RCE
   inside the enclave; Power's minijinja is sandboxed semantics
   hijack. Same class (interpreter for attacker bytes), different
   severity. Mitigations differ in detail (use weights_only=True
   vs. pin the template hash) but share the same underlying fix
   (bind interpreter inputs to attestation claims).
-- **F5 runtime cache vs F5 build-time cache.** Power's cache lives
+- **F2 runtime cache vs F2 build-time cache.** Power's cache lives
   inside the enclave at runtime; modelwrap's "cache" is the
   pre-placed output dir at build time. Both are "stale state
   stands in for current state," at very different time scales.
 
 **What each F-class is structurally trying to fix.** F1 closes a
-data-flow gap; F2 closes a default-value gap; F3 closes an
-external-trust gap; F4 closes a behavior-bounding gap; F5
+data-flow gap; F3 closes a default-value gap; F4 closes an
+external-trust gap; F5 closes a behavior-bounding gap; F2
 closes a freshness gap; F6 closes a channel-identity gap; F7
 closes a schema-completeness gap (sampling); F8 closes a
 multi-component-chain-binding gap; F9 closes another
@@ -825,7 +825,7 @@ keep the attestation perfectly honest while voiding that
 assumption: (a) an opaque precompiled artefact (a `.so`, a fat
 binary, an obfuscated blob) baked into the measured image — the
 hash is faithful, the behaviour is unknowable without reverse
-engineering; and (b) remote code loaded at runtime (the F4
+engineering; and (b) remote code loaded at runtime (the F5
 load-remote mechanism, §3.7). A verifier that pins the hash of an
 unreviewed binary has soundness with respect to *identity* and
 zero assurance about *behaviour*. This is the seam where
@@ -890,7 +890,7 @@ quote); Stage 8 if the receipt schema also echoes the value.
 | Tinfoil `verifiable-reviewer` | `LLM_URL`, `LLM_MODEL` env | M | — | DSSE envelope says `model: gpt-oss-120b`; the string came from env, not from the LLM enclave's own attestation |
 | nearai cloud-verifier | No `model_hash` slot in `report_data` (model identity bound elsewhere) | — *(withdrawn)* | **2** | Corrected after maintainer response: model identity is committed via `mr_config_id` = 01‖SHA256(app_compose) + Sigstore-pinned image digests; `report_data` holds the runtime key + nonce by design |
 | EphemeralML, Power, nearai | `expected_measurement` left unset by caller | M | (background) | Caller never pinned the PCR / MRTD allowlist; verifier accepts any code measurement |
-| (general pattern) | Measured code force-sets a leak/RCE switch the declared config hides (`enable_log_requests`, `trust_remote_code`) | — | — | *Laundering flavour.* Effective config ≠ declared config; only catchable if the effective value is an attested, verifier-pinned field. Composes with F4 when the activated path is an interpreter / loader. |
+| (general pattern) | Measured code force-sets a leak/RCE switch the declared config hides (`enable_log_requests`, `trust_remote_code`) | — | — | *Laundering flavour.* Effective config ≠ declared config; only catchable if the effective value is an attested, verifier-pinned field. Composes with F5 when the activated path is an interpreter / loader. |
 
 **Why this recurs.** TEE launch measurements are coarse and slow
 to update; binding fine-grained policy / config into the
@@ -906,13 +906,13 @@ payload as a *first-class* claim and require the verifier to pin
 it. The fail-closed default for a verifier should be: any field
 not pinned in the policy is rejected, not accepted.
 
-**Not the same as.** F2 (opt-in policy) is about checks the
+**Not the same as.** F3 (opt-in policy) is about checks the
 verifier *could* perform but doesn't. F1 is about data the
 verifier *thinks* is being checked but actually isn't — the
 verifier sees a value it believes was measured, when it was just
 operator-typed.
 
-### 3.5 F2 — Integrity / policy bindings are opt-in
+### 3.5 F3 — Integrity / policy bindings are opt-in
 
 **Pattern.** The system has the right primitives (model-hash
 check, signature check, nonce match, PCR allowlist), but each is
@@ -953,11 +953,11 @@ makes verification fail closed. Equivalent fix for Power: refuse
 to start with `tee_mode = true` and empty `model_hashes`.
 
 **Not the same as.** F1 is the verifier accepting an
-operator-typed value because there's no check possible. F2 is the
+operator-typed value because there's no check possible. F3 is the
 verifier *having* a check available but skipping it because the
 default doesn't engage it.
 
-### 3.6 F3 — External evidence is parsed without authenticating it
+### 3.6 F4 — External evidence is parsed without authenticating it
 
 **Pattern.** The attested chain extends outside the enclave (to
 NVIDIA NRAS for GPU attestation, to Sigstore for container
@@ -1004,13 +1004,13 @@ checks are not signature checks.* Any function whose name reads
 like "decode" or "fetch" must not be confused with a function
 named "verify."
 
-**Not the same as.** F2 (opt-in policy) is about checks the
-verifier *should* perform on its own data. F3 is about checks the
+**Not the same as.** F3 (opt-in policy) is about checks the
+verifier *should* perform on its own data. F4 is about checks the
 verifier *should* perform on someone else's data — typically a
 third party (NRAS, Sigstore, the operator's own infrastructure
 proxy).
 
-**Bounding rollback at adjacent layers (TCB floors).** Closing F3
+**Bounding rollback at adjacent layers (TCB floors).** Closing F4
 currency at the *release / code-measurement* layer is not the only
 mitigation surface; an independent floor on the *platform / firmware*
 layer bounds how far rollback can travel even when the proxy is
@@ -1027,7 +1027,7 @@ Tinfoil-1 still stands), but it is the design pattern that makes the
 class survivable in practice: when an upstream evidence source is a
 singleton, layer independent floors below it to bound the blast radius.
 
-### 3.7 F4 — Measured code's behavior on attacker-controlled input escapes the measurement
+### 3.7 F5 — Measured code's behavior on attacker-controlled input escapes the measurement
 
 **Pattern.** The most general statement of soundness for
 code-measurement attestation: *measuring the code does not bound
@@ -1076,9 +1076,9 @@ rendering.
 | (general pattern) | Custom YAML / compose evaluation, ONNX with custom ops | — | — | Anywhere the enclave loads and *executes* code from disk that wasn't part of the measurement |
 | (general pattern) | `eval`-style API endpoints, dynamic module imports | — | — | Same family — measured code running attacker-chosen extensions |
 | Power | optional `llama-cpp-2` C++ backend (`Cargo.toml:132`) parses attacker-supplied GGUF | M/H | — (candidate, no PoC) | *Mechanism 2 (corruption).* A heap overflow / OOB in the C/C++ GGUF parser or a kernel, reachable from a malicious model file, yields RCE inside the enclave — same consequence as the pickle path. Present only when the `llama.cpp` feature is built; the pure-Rust `picolm` default avoids it. Counts as a finding only once a reachable bug (or a vulnerable pinned version) is demonstrated. |
-| (general pattern) | HF `transformers` / vLLM `trust_remote_code=True`; custom modelling code `exec`'d at load | H | — | *Mechanism 3 (load-remote).* The best-known transformers/vLLM RCE vector. N/A to the surveyed Rust loaders (safetensors / GGUF), but applies to any HF-backed stack — including the out-of-survey vLLM backends NEAR AI (`vllm-proxy`) and Tinfoil (`confidential-model-router`) delegate inference to. Composes with F1/F3: a Category-4-style config that force-enables it, or remote code whose provenance is never authenticated. |
+| (general pattern) | HF `transformers` / vLLM `trust_remote_code=True`; custom modelling code `exec`'d at load | H | — | *Mechanism 3 (load-remote).* The best-known transformers/vLLM RCE vector. N/A to the surveyed Rust loaders (safetensors / GGUF), but applies to any HF-backed stack — including the out-of-survey vLLM backends NEAR AI (`vllm-proxy`) and Tinfoil (`confidential-model-router`) delegate inference to. Composes with F1/F4: a Category-4-style config that force-enables it, or remote code whose provenance is never authenticated. |
 
-**The F4 severity spectrum.** At one end is full RCE (Laminator's
+**The F5 severity spectrum.** At one end is full RCE (Laminator's
 pickle path, a native-parser overflow, or a remote-code loader);
 at the other is sandboxed-interpreter semantics-hijack (Power's
 minijinja). All share the same structural defect: the measured
@@ -1121,18 +1121,18 @@ going to consume bytes the attacker chose, the measurement must
 cover both those bytes *and* the code path that handles them.
 
 **Not the same as.** F1 is the operator handing the *verifier* a
-fake value via an unmeasured field; F4 is the operator handing
+fake value via an unmeasured field; F5 is the operator handing
 the *measured code* bytes it interprets, mis-parses, or loads as
 code. The two often co-occur but they fail at different joints:
-F1 at J0 / J2, F4 at J1 → J2.
+F1 at J0 / J2, F5 at J1 → J2.
 
 EphemeralML, written in Rust with a closed CBOR claims map for
 receipts and safe-tensor model loaders, avoids the RCE flavour
-of F4. It does not avoid the sandboxed flavour: any chat-template
+of F5. It does not avoid the sandboxed flavour: any chat-template
 engine it ships would face the same template-hijack vector
 Power's minijinja faces.
 
-### 3.8 F5 — Cached / registration-time state stands in for runtime state
+### 3.8 F2 — Cached / registration-time state stands in for runtime state
 
 **Pattern.** The attestation reports a hash that was computed at
 some past moment, not the bytes the system is currently using. If
@@ -1175,17 +1175,17 @@ buffer's hash* rather than the disk file's hash — survives file
 swaps because the in-memory copy is still the bytes the enclave
 loaded. (3) *Extend the launch measurement to cover the model
 bytes* via dm-verity (modelwrap's intent) — fully closes runtime
-F5, but moves the gap to build-time F5 (Attack 4) unless the build
+F2, but moves the gap to build-time F2 (Attack 4) unless the build
 tool is also locked down. Tinfoil's deployed pipeline shows the
-build-time F5 itself can be bounded by adding **(3a)** a measured
+build-time F2 itself can be bounded by adding **(3a)** a measured
 upper-layer config (`tinfoil-config.yml` whose SHA-256 is on the
 kernel cmdline) pinning the dm-verity root hash, plus deterministic
 reproducibility as an out-of-band cross-check — leaving the chain
 sound as long as the *config-publication path* itself is not
-rollback-able (which routes back to F3 currency, §3.6).
+rollback-able (which routes back to F4 currency, §3.6).
 
 **Not the same as.** F1 is unmeasured static config flowing into
-the payload. F5 is *measured* state going stale relative to
+the payload. F2 is *measured* state going stale relative to
 runtime. The hash exists; it's just out of date.
 
 ### 3.9 F6 — Live channel is unbound from the attestation
@@ -1227,10 +1227,10 @@ implements the same comparison but as a standalone script the
 caller chooses whether to invoke; that's the design difference
 that turns the same primitive from a fix into an opt-in.
 
-**Not the same as.** F1 (unmeasured static inputs) and F2 (opt-in
+**Not the same as.** F1 (unmeasured static inputs) and F3 (opt-in
 policy on pinned values). F6 is about *current-session* identity
 vs. *attested-document* identity. They can match perfectly at the
-document layer and still mismatch at the wire layer. Where F2's
+document layer and still mismatch at the wire layer. Where F3's
 "opt-in policy on `expected_model_hash`" is a *receipt-content*
 gap, F6's "opt-in TLS binding" is a *transport-identity* gap.
 
@@ -1257,7 +1257,7 @@ can't pin what doesn't exist).
 | EphemeralML | AIR v1 receipt schema has no sampling fields (`common/src/air_receipt.rs:82-108`) | H | **9** | CDDL defines `model_id`, `model_version`, `model_hash`, `request_hash`, `response_hash`, `policy_version`, `security_mode` — no `temperature`, `top_p`, `seed` |
 | nearai cloud-verifier | Signed text is `<field>:request_hash:response_hash` (`chat_verifier.py:79-96`) | M | — | Parser only looks for hashes; no sampling slot |
 | Power | OpenAI-compatible API exposes `temperature`, `top_p`, `seed` per request | H | — | Backends honour these per call; nothing in the attestation payload echoes them |
-| Laminator | Audit-time benchmark accuracy is per-dataset, not per-prompt | n/a | (7's metric-forgery cousin) | The static-loader attack (Attack 7, F4) demonstrates the receipt-field forgery analogue; sampling unattested is implicit in Laminator's `accuracy_attestation` not recording per-prompt parameters |
+| Laminator | Audit-time benchmark accuracy is per-dataset, not per-prompt | n/a | (7's metric-forgery cousin) | The static-loader attack (Attack 7, F5) demonstrates the receipt-field forgery analogue; sampling unattested is implicit in Laminator's `accuracy_attestation` not recording per-prompt parameters |
 
 **Why this recurs.** Receipt schemas tend to authenticate
 *content* (the bytes sent in, the bytes sent out, the model that
@@ -1270,7 +1270,7 @@ room for operator-side manipulation that no current TEE-AI
 receipt schema captures.
 
 **Mitigation pattern.** F7 is *not* fixable by tightening policy
-defaults the way F2 is. The verifier cannot pin
+defaults the way F3 is. The verifier cannot pin
 `expected_response_hash` in advance because the model's output is
 not deterministic — every honest call legitimately produces a
 different hash. Closing F7 requires extending the receipt schema
@@ -1282,14 +1282,14 @@ EphemeralML: add `temperature`, `top_p`, `top_k`, `seed`,
 enclave to populate them from the request; require the verifier's
 policy to pin them.
 
-**Not the same as.** F4 (interpreter-of-attacker-bytes) hijacks
+**Not the same as.** F5 (interpreter-of-attacker-bytes) hijacks
 the *prompt* the model sees; F7 hijacks the *sampling regime* the
-model runs under. Power's Attack 10 (F4-narrow) and Attack 9 (F7)
+model runs under. Power's Attack 10 (F5-narrow) and Attack 9 (F7)
 can both be applied against the same Power deployment and they
-chain: F4 rewrites the prompt; F7 ensures the verifier can't see
+chain: F5 rewrites the prompt; F7 ensures the verifier can't see
 that the response came from an unusual sampling configuration.
 The mitigation is the same shape — bind the missing bytes into
-the attestation — but the missing bytes are different: F4 needs
+the attestation — but the missing bytes are different: F5 needs
 `sha256(chat_template)`, F7 needs the sampling-parameter struct.
 
 F7 is one of the three most paper-relevant failure modes (with
@@ -1358,7 +1358,7 @@ hardware-root identifier (e.g., TDX MRTD, H100 GPU UUID,
 PSP firmware version) and the document hash. Verifier policy
 pins all components.
 
-**Not the same as.** F3 (external evidence unauthenticated)
+**Not the same as.** F4 (external evidence unauthenticated)
 is about whether one external signature was checked at all.
 F8 is about whether the *right* external attestation refers
 to the same computation as the *primary* attestation —
@@ -1447,7 +1447,7 @@ These additions also expose the application as a *composition*
 of attested sub-components, the natural counterpart to F8's
 vertical composition.
 
-**Not the same as.** F4 (interpreter-of-attacker-bytes)
+**Not the same as.** F5 (interpreter-of-attacker-bytes)
 hijacks the *prompt the model sees* via measured code; F9 is
 about *unmeasured operator-mediated bytes that flow into and
 out of the model* without the measured code's complicity. F7
@@ -1495,8 +1495,8 @@ lookup table.
 
 - **—** (em-dash) = the failure mode was actively checked against
   the system's source and *does not apply* in this surveyed
-  configuration. Examples: F4 against EphemeralML (Rust,
-  closed-map CBOR, no eval); F2 against Tinfoil SDK (Sigstore
+  configuration. Examples: F5 against EphemeralML (Rust,
+  closed-map CBOR, no eval); F3 against Tinfoil SDK (Sigstore
   consensus checks are mandatory in `sigstore-go`).
 - **n/a** = the system doesn't have the surface the failure mode
   attacks. Examples: F6 against modelwrap (build-time tool, no
@@ -1508,7 +1508,7 @@ lookup table.
 
 ### 4.2 The matrix
 
-| | F1 unmeasured config | F2 opt-in policy | F3 unauth. external | F4 trusted code | F5 cached state | F6 channel unbound | F7 sampling unattested | F8 CPU↔GPU chain | F9 app-layer context |
+| | F1 unmeasured config | F3 opt-in policy | F4 unauth. external | F5 trusted code | F2 cached state | F6 channel unbound | F7 sampling unattested | F8 CPU↔GPU chain | F9 app-layer context |
 |---|---|---|---|---|---|---|---|---|---|
 | **Laminator** | H — `loader.insecure__use_cmdline_argv = true` (`main.manifest.template:17`) | M — manifest covers `*.py` files but not config | — | **H — `torch.load` pickle RCE [1, 7]** (`main.py:291, 384`) | M — registration-time `manifest.sha256` analog | n/a (no live channel; verifies via local SGX quote) | n/a (audit-time accuracy, not per-inference receipts) | n/a (SGX only, no GPU CC in scope) | n/a (audit-time on closed dataset; no multi-turn / RAG / tools) |
 | **modelwrap** | Hygiene¹ — `MODEL` env, optional `@revision` (`pack.py:25-31`); deployment-config-lint under Tinfoil pipeline | — (no verifier-side policy surface) | L — trusts `huggingface_hub` LFS verify | — (no in-enclave interpreter at build) | **H (standalone) / Hygiene¹ (Tinfoil pipeline) — pre-existing outputs bypass build [4]** (`pack.py:58-71, 77-102`) | n/a (build-time tool) | n/a | n/a (build-time tool, no GPU) | n/a (build-time tool, no inference) |
@@ -1538,12 +1538,12 @@ high-severity findings concentrated?
 
 | System | H | M | L | — / n.a. | PoCs anchored here | Posture summary |
 |---|---|---|---|---|---|---|
-| Laminator | 2 | 2 | 0 | 5 | **1, 7, 14** | F4 pickle RCE; F1 argv unmeasured (both the H finding *and* its PoC); everything else n/a — no live channel, no per-inference receipt, no GPU CC, no application layer wrapping the audit task |
+| Laminator | 2 | 2 | 0 | 5 | **1, 7, 14** | F5 pickle RCE; F1 argv unmeasured (both the H finding *and* its PoC); everything else n/a — no live channel, no per-inference receipt, no GPU CC, no application layer wrapping the audit task |
 | modelwrap | 0¹ | 0¹ | 1 | 6 | **4** | One H finding *as a standalone tool* (build-time forgery), but reframed to **build-host hygiene** under Tinfoil's first-party pipeline (see ¹ footnote above and `modelwrap_soundness_finding.md` vendor-response section): the `tinfoil-config.yml` + reproducible-build chain bounds the exploit. Stays H for third-party adopters who copy `modelwrap` without inheriting that pipeline. |
 | A3S Power | 3 | 5 | 1 | 0 | **3, 10, 12, 15** | Largest attack surface in the survey — every one of the nine cells is graded; four PoCs anchored |
 | NEAR AI verifier | 4 | 3 | 1 | 1 | **2, 6, 8, 17, 18, 19** | Four independent H gaps and three M gaps; the most attack-anchored system in the survey at 6 PoCs |
-| EphemeralML | 2 | 4 | 1 | 2 | **5, 9, 13, 16** | Two H gaps (F2 default policy, F7 schema absence); F4 actively avoided by Rust + CBOR closed-map design; F8 and F9 add M-severity composition gaps; F6 added via the signing-key chain PoC |
-| Tinfoil SDK | 1 | 1 | 2 | 5 | **11** | Best-engineered verifier in the survey (only one H finding — the proxy-mediated F3 rollback); reference fixes for F2, F4, F6 |
+| EphemeralML | 2 | 4 | 1 | 2 | **5, 9, 13, 16** | Two H gaps (F3 default policy, F7 schema absence); F5 actively avoided by Rust + CBOR closed-map design; F8 and F9 add M-severity composition gaps; F6 added via the signing-key chain PoC |
+| Tinfoil SDK | 1 | 1 | 2 | 5 | **11** | Best-engineered verifier in the survey (only one H finding — the proxy-mediated F4 rollback); reference fixes for F3, F5, F6 |
 
 ### 4.4 Per-class summary (column totals)
 
@@ -1553,21 +1553,21 @@ most paper-relevant?
 | Class | H findings | M findings | L findings | Systems with a PoC | Universality |
 |---|---|---|---|---|---|
 | F1 unmeasured config | 2 | 3 | 1 | nearai [2], Laminator [14] | Affects every system; the question is which payload field gets corrupted |
-| F2 opt-in policy | 2 | 2 | 0 | EphemeralML [5], Power [15] | Affects every system with a verifier surface; the most pervasive class with a structural fix |
-| F3 unauth. external | 2 | 0 | 2 | nearai [6], Tinfoil [11] | Affects every system that consumes third-party signed evidence; mitigation is per-evidence-source signature wiring |
-| F4 trusted code | 1 | 1 | 0 | Laminator [1, 7], Power [10] | Affects systems whose measured code runs attacker logic — canonically as an interpreter (the two PoCs), also via native-memory corruption or remote-code load (§3.7); mitigation is to bind those inputs and pin the handling code path |
-| F5 cached state | 1 | 2 | 3 | Power [3], modelwrap [4] | Affects systems that cache identity values (runtime or build-time); fixed by re-hashing or extending launch measurement to cover bytes |
+| F3 opt-in policy | 2 | 2 | 0 | EphemeralML [5], Power [15] | Affects every system with a verifier surface; the most pervasive class with a structural fix |
+| F4 unauth. external | 2 | 0 | 2 | nearai [6], Tinfoil [11] | Affects every system that consumes third-party signed evidence; mitigation is per-evidence-source signature wiring |
+| F5 trusted code | 1 | 1 | 0 | Laminator [1, 7], Power [10] | Affects systems whose measured code runs attacker logic — canonically as an interpreter (the two PoCs), also via native-memory corruption or remote-code load (§3.7); mitigation is to bind those inputs and pin the handling code path |
+| F2 cached state | 1 | 2 | 3 | Power [3], modelwrap [4] | Affects systems that cache identity values (runtime or build-time); fixed by re-hashing or extending launch measurement to cover bytes |
 | F6 channel unbound | 1 | 2 | 0 | nearai [8], EphemeralML [16] | Affects every system with a live runtime channel; Tinfoil shows the reference fix (`TLSBoundRoundTripper`) is feasible |
 | F7 sampling unattested | 2 | 1 | 0 | EphemeralML [9], nearai [17] | **Universal across all LLM-serving systems**; AI-specific; no system in the survey has converged on a fix |
 | F8 CPU↔GPU chain | 2 | 2 | 0 | Power [12], nearai [18] | **Universal across multi-component TEE-AI**; no surveyed system ships any of the three mitigations (verdict-hash binding, per-request NRAS nonce, composite receipt) |
 | F9 app-layer context | 0 | 3 | 0 | EphemeralML [13], nearai [19] | **Universal across LLM-serving systems with any application layer**; severity tracks how agentic the application is — M today, H for tomorrow's tool-using services |
 
-F2, F3, F7, F8, and F9 are the broadest. F4, F7, F8, and F9 are
-the most uniquely TEE-AI-flavoured (F4's
+F3, F4, F7, F8, and F9 are the broadest. F5, F7, F8, and F9 are
+the most uniquely TEE-AI-flavoured (F5's
 interpreter-of-attacker-bytes is general but the LLM-format
 ecosystem makes it acute; F7 is genuinely LLM-specific; F8 is
 TEE-AI-specific because multi-hardware-root attestation arose
-with CC-GPU; F9 is LLM-application-specific). F5 has the cleanest
+with CC-GPU; F9 is LLM-application-specific). F2 has the cleanest
 mitigation (extend the measurement to cover the bytes, or re-hash
 on every binding); F8 and F9 have known mitigation shapes (§3.11
 and §3.12) but no shipped reference.
@@ -1588,7 +1588,7 @@ data-plane choice not a config-plane one), or (b) hash the
 config into the launch image (achievable with reproducible
 builds; none of the surveyed systems do it fully).
 
-**F2 is everywhere because library API design favours
+**F3 is everywhere because library API design favours
 `Option<T>` defaults.** Power, EphemeralML, NEAR AI verifier, and
 the Power SDK all have at least one `Option<>` policy field
 that silently fails open. Where the same library defaults a
@@ -1599,14 +1599,14 @@ uniformly. The structural fix is taxonomic (decide which
 defaults are security-critical, then make every one of them
 fail closed), not technical.
 
-**F3 + F5 compose, even when each is locally well-handled.** The
+**F4 + F2 compose, even when each is locally well-handled.** The
 Tinfoil SDK does Sigstore signature verification correctly,
 including SCT, transparency log, and observer-timestamp checks.
-That should close F3 *and* the freshness sub-flavor of F5. But
-the upstream `github-proxy.tinfoil.sh` (F3 currency variant)
+That should close F4 *and* the freshness sub-flavor of F2. But
+the upstream `github-proxy.tinfoil.sh` (F4 currency variant)
 chooses which bundle the SDK ever sees, so the observer-timestamp
 check freshness-protects only the *historical bundle* the proxy
-returned — not against rollback. Closing F3 without closing F5,
+returned — not against rollback. Closing F4 without closing F2,
 or vice versa, leaves the gap.
 
 Two June-2026 vendor-response refinements tighten this story
@@ -1631,10 +1631,10 @@ without changing the structural claim:
 
 Both refinements illustrate the same meta-pattern: **bounding a
 rollback at one layer does not automatically bound it at an
-adjacent layer**, and the F3 + F5 + (here) F5-build composition
+adjacent layer**, and the F4 + F2 + (here) F2-build composition
 travels along the layer that the floor does not yet reach.
 
-**F4 was previously framed as binary; the survey shows it has a
+**F5 was previously framed as binary; the survey shows it has a
 spectrum.** Laminator's pickle RCE is the canonical end (H,
 full RCE inside the enclave). Power's minijinja
 chat-template-hijack is the other end (M, sandboxed semantics
@@ -1708,22 +1708,22 @@ density are present:
   soundness lens. Both rows got denser with the addition of F8
   and F9 — neither had a checked-clean cell to spare.
 - **Highest-density columns** are F1 (2H/3M/1L across all six
-  systems — most pervasive), F3 (2H/0M/2L across four systems),
+  systems — most pervasive), F4 (2H/0M/2L across four systems),
   F7 (2H/1M across the three LLM-serving systems), F8 (2H/2M
   across four multi-component systems), and F9 (0H/3M across
   the three LLM-serving systems — M today, projected H once
   agentic).
 - **The cleanest single-H row** is Tinfoil SDK (1H, 1M, 2L —
-  just F3 graded as H, plus an M on F8 for the GPU half of
+  just F4 graded as H, plus an M on F8 for the GPU half of
   the proxy-mediated trust path). It is the best-engineered
-  verifier in the survey, with reference fixes for F2
-  (mandatory Sigstore consensus checks), F4 (Go, no
+  verifier in the survey, with reference fixes for F3
+  (mandatory Sigstore consensus checks), F5 (Go, no
   eval-equivalent), and F6 (`TLSBoundRoundTripper`). modelwrap
-  also has a single H (build-time F5), but its narrow scope
+  also has a single H (build-time F2), but its narrow scope
   (it's a build tool, not a verifier) makes the comparison
   apples-to-oranges.
-- **Single-H columns** are F4 (Laminator's pickle RCE),
-  F5 (modelwrap's build-time forgery), and F6 (nearai's
+- **Single-H columns** are F5 (Laminator's pickle RCE),
+  F2 (modelwrap's build-time forgery), and F6 (nearai's
   channel binding). In each case the H instance is the
   paradigmatic example of the class even though only one
   system in the survey exhibits that severity.
@@ -1767,10 +1767,10 @@ priority marker are good practice.
 | F-class | Checklist sections |
 |---|---|
 | F1 unmeasured config | §5.2 |
-| F2 opt-in policy | §5.3, §5.7 |
-| F3 unauth. external | §5.4 |
-| F4 trusted code | §5.5 |
-| F5 cached state | §5.3 (P0), §5.6 |
+| F3 opt-in policy | §5.3, §5.7 |
+| F4 unauth. external | §5.4 |
+| F5 trusted code | §5.5 |
+| F2 cached state | §5.3 (P0), §5.6 |
 | F6 channel unbound | §5.7 (one item) |
 | F7 sampling unattested | §5.7 (multiple items) |
 | F8 CPU↔GPU chain | §5.8 |
@@ -1785,114 +1785,114 @@ priority marker are good practice.
 - [ ] **(P1)** Any "simulated" / "mock" mode produces attestations
       the verifier rejects by default (sentinel `security_mode`,
       sentinel PCR, or `tee_type == "simulated"` auto-reject).
-      `[F1 + F2 — closes Power's A3S_TEE_SIMULATE gap]`
+      `[F1 + F3 — closes Power's A3S_TEE_SIMULATE gap]`
 - [ ] **(P0)** The `MEASUREMENT` / PCR / MRTD allowlist is pinned
       by the verifier from a trust root independent of the
       operator (e.g., not the same proxy that returns the
-      quote). `[F1 + F3 — closes attack 4 and attack 11]`
+      quote). `[F1 + F4 — closes attack 4 and attack 11]`
 
-### 5.3 Integrity bindings (closes F2 + the runtime variant of F5)
+### 5.3 Integrity bindings (closes F3 + the runtime variant of F2)
 
 - [ ] **(P0)** Model file hash is bound into the attestation
       `user_data` (or equivalent slot) and re-checked at runtime
-      on every load from disk. `[F5 — closes attack 3]`
+      on every load from disk. `[F2 — closes attack 3]`
 - [ ] **(P0)** When a `model_hashes` / `expected_model_hash`
       field exists in policy, its absence either fails closed or
       is documented as developer-only with a runtime warning.
-      `[F2 — closes attack 5; would have closed Power's gap too]`
+      `[F3 — closes attack 5; would have closed Power's gap too]`
 - [ ] **(P0)** The session signing key the receipt is signed
       with is bound into the hardware attestation `user_data`,
       and the verifier checks that binding before trusting the
-      key. `[F2 + F6 — closes the EphemeralML/Power signing-key
+      key. `[F3 + F6 — closes the EphemeralML/Power signing-key
       chain-of-trust gap]`
 - [ ] **(P1)** Each verifier check's "Skip" is intentional and
       classified — either critical (Skip = fail) or opt-out
-      (Skip = pass with a visible note). `[F2 — direct fix for
+      (Skip = pass with a visible note). `[F3 — direct fix for
       attack 5; would have promoted MHASH/MODEL/ADHASH to
       critical in EphemeralML]`
 
-### 5.4 External evidence (closes F3)
+### 5.4 External evidence (closes F4)
 
 - [ ] **(P0)** Every external service the verifier consults has
       its response signature verified locally against a pinned
       root (NVIDIA JWKS, AMD KDS root, Intel PCS root, AWS Nitro
-      CA, Sigstore Fulcio). `[F3 — closes attack 6]`
+      CA, Sigstore Fulcio). `[F4 — closes attack 6]`
 - [ ] **(P1)** Sigstore / in-toto / DSSE bundles are decoded and
-      verified, not just HEAD-checked or text-matched. `[F3 —
+      verified, not just HEAD-checked or text-matched. `[F4 —
       closes nearai Finding N-7]`
 - [ ] **(P0)** Currency-of-evidence is verified by a path
       independent of any single operator-controlled proxy.
       Two-of-two agreement between independent sources (e.g.,
       Tinfoil's proxy AND `api.github.com`) or a freshness floor
-      from a Sigstore TSA. `[F3 — closes attack 11]`
+      from a Sigstore TSA. `[F4 — closes attack 11]`
 - [ ] **(P1)** TCB status values (`UpToDate` / `OutOfDate` /
       `Revoked`) have an explicit policy. `OutOfDate` is rejected
       by default; an explicit opt-in flag listing the accepted
-      advisories overrides. `[F3 — closes nearai's
+      advisories overrides. `[F4 — closes nearai's
       OutOfDate-accepted finding]`
 
-### 5.5 Trusted code / interpreter problem (closes F4)
+### 5.5 Trusted code / interpreter problem (closes F5)
 
 - [ ] **(P0)** No pickle or pickle-like deserialization of
       attacker-controlled bytes inside the trusted boundary. Use
       safetensors, GGUF, `weights_only=True`, or equivalent.
-      `[F4 — closes attacks 1, 7]`
+      `[F5 — closes attacks 1, 7]`
 - [ ] **(P0)** Operator-controlled chat templates (Jinja, etc.)
       either (a) aren't rendered inside the trusted boundary or
       (b) have their template-string hash bound into the
-      attestation as a first-class claim. `[F4 — closes attack
+      attestation as a first-class claim. `[F5 — closes attack
       10]`
 - [ ] **(P1)** No `eval`, dynamic import, or
       YAML/HCL/JSON-with-references where attacker-controlled
-      bytes can extend code paths. `[F4 — generic preventative]`
+      bytes can extend code paths. `[F5 — generic preventative]`
 - [ ] **(P1)** All "configuration" parsers are total functions
       over a closed schema, reject unknown fields, and reject
-      duplicate keys. `[F4 — EphemeralML's AIR v1 closed-map
+      duplicate keys. `[F5 — EphemeralML's AIR v1 closed-map
       decoder is the reference]`
 - [ ] **(P0)** Native parsers / kernels that touch
       attacker-controlled bytes (GGUF / tensor readers, custom
       CUDA ops) are memory-safe or fuzzed, and their version is
       pinned into the measurement — a hash of the input doesn't
       help if any well-formed input can also trigger the bug.
-      `[F4 mechanism 2 — native memory-safety corruption]`
+      `[F5 mechanism 2 — native memory-safety corruption]`
 - [ ] **(P0)** Remote-code loading is disabled by default
       (`trust_remote_code=False`, no runtime `dlopen` / plugin
       import of operator-influenced code); if genuinely required,
       the fetched code's identity is a measured, verifier-pinned
-      field. `[F4 mechanism 3 — load-remote]`
+      field. `[F5 mechanism 3 — load-remote]`
 
-### 5.6 Runtime drift (closes F5 — both build-time and runtime variants)
+### 5.6 Runtime drift (closes F2 — both build-time and runtime variants)
 
 - [ ] **(P0)** Attestation endpoints either (a) re-hash on every
       call or (b) bind the *currently loaded* hash (from the
       in-memory model buffer), not the registration-time hash.
-      `[F5 — closes attack 3]`
+      `[F2 — closes attack 3]`
 - [ ] **(P0)** Skip-if-output-exists idempotency checks in build
       tools compare a fresh build against the cached output
       before accepting the cache, OR refuse to start if outputs
-      exist. `[F5 — closes attack 4]`
+      exist. `[F2 — closes attack 4]`
 - [ ] **(P1)** Disk-backed files inside the enclave are either
       dm-verity-protected (root hash in the launch measurement)
-      or integrity-checked on every read. `[F5 — closes Power's
+      or integrity-checked on every read. `[F2 — closes Power's
       cache TOCTOU window]`
 - [ ] **(P1)** Sigstore bundle freshness is enforced via an
       observer-timestamp window (e.g., bundles older than N
       hours rejected), not just "≥1 observer timestamp present."
-      `[F3 + F5 composition — closes attack 11's freshness
+      `[F4 + F2 composition — closes attack 11's freshness
       half]`
 
-### 5.7 Receipt / signed-payload schema (closes F2, F6, F7, plus chain-of-trust)
+### 5.7 Receipt / signed-payload schema (closes F3, F6, F7, plus chain-of-trust)
 
 - [ ] **(P0)** Closed claims map; duplicate keys rejected.
-      `[F2 + F4 — EphemeralML's AIR v1 is the reference]`
+      `[F3 + F5 — EphemeralML's AIR v1 is the reference]`
 - [ ] **(P0)** Verify-before-parse: signature verification gates
-      claim decoding. `[F4 — prevents pre-signature parsing of
+      claim decoding. `[F5 — prevents pre-signature parsing of
       attacker bytes]`
 - [ ] **(P1)** Allowlists for enumerable fields (`security_mode`,
       `model_hash_scheme`, `measurement_type`) are fail-closed
-      on unknown values. `[F4 — EphemeralML reference]`
+      on unknown values. `[F5 — EphemeralML reference]`
 - [ ] **(P0)** Replay protection (`cti` + seen-set, or fresh
-      nonce) is mandatory in default policy, not opt-in. `[F2 —
+      nonce) is mandatory in default policy, not opt-in. `[F3 —
       EphemeralML's `seen_cti: None` default gap]`
 - [ ] **(P0)** The verifier SDK makes live-channel binding
       mandatory — i.e., a TLS connection or HPKE handshake that
@@ -1902,7 +1902,7 @@ priority marker are good practice.
 - [ ] **(P0)** Receipts bind both content (`request_hash`,
       `response_hash`) AND identifier (`chat_id`, `session_id`,
       `cti`) AND time (`iat`, freshness window) AND the model
-      identity (`model_hash`, `model_id`). `[F2 + F5 — multiple
+      identity (`model_hash`, `model_id`). `[F3 + F2 — multiple
       systems' partial-binding gaps]`
 - [ ] **(P0, AI-specific)** Receipts for LLM inference commit to
       the **sampling parameters** (`temperature`, `top_p`,
@@ -1974,7 +1974,7 @@ attested inference call are themselves attested.
       swap]`
 - [ ] **(P1)** For multi-turn chat, every receipt is chained:
       receipt N includes the hash of receipt N-1. `[F9 +
-      partially F2 — prevents operator-side history rewriting
+      partially F3 — prevents operator-side history rewriting
       between turns]`
 
 ---
@@ -2046,8 +2046,8 @@ survey adds.
 | Prior work | Scope | What this survey adds |
 |---|---|---|
 | **Sadeghi & Stüble, "Property-Based Attestation for Computing Platforms" (NSPW 2004)** | Introduces the principle that *properties* (not binaries) are what relying parties care about, and discusses translation. | Concretizes the *property gap* on six modern TEE-AI systems; F1–F9 are an empirical specialization of "the property is not the measurement." |
-| **Kil et al., "Remote Attestation to Dynamic System Properties" (DSN 2009)**, and the IMA / TPM2-PCR lineage | Argues for runtime + boot measurement; introduces PCR-extending dynamic measurement. | Shows that even with hardware-rooted runtime measurement (TDX RTMRs, SEV-SNP), nothing forces the *application-level* identity to land in the measurement — F1 and F5 are the modern descendants of this gap. |
-| **Coker et al., "Principles of Remote Attestation" (IJIS 2011)** | Lays out semantic-explicitness, fresh-vs-stale, and trust-establishment criteria for attestation protocols. | Maps Coker's principles onto the eight-joint workflow (J0–J7) and shows where each is broken in practice. F2 ≈ semantic-explicitness violation; F5 ≈ fresh-vs-stale violation; F3 ≈ trust-establishment violation. |
+| **Kil et al., "Remote Attestation to Dynamic System Properties" (DSN 2009)**, and the IMA / TPM2-PCR lineage | Argues for runtime + boot measurement; introduces PCR-extending dynamic measurement. | Shows that even with hardware-rooted runtime measurement (TDX RTMRs, SEV-SNP), nothing forces the *application-level* identity to land in the measurement — F1 and F2 are the modern descendants of this gap. |
+| **Coker et al., "Principles of Remote Attestation" (IJIS 2011)** | Lays out semantic-explicitness, fresh-vs-stale, and trust-establishment criteria for attestation protocols. | Maps Coker's principles onto the eight-joint workflow (J0–J7) and shows where each is broken in practice. F3 ≈ semantic-explicitness violation; F2 ≈ fresh-vs-stale violation; F4 ≈ trust-establishment violation. |
 
 #### 6.3.2 AI / ML governance lineage
 
@@ -2055,8 +2055,8 @@ survey adds.
 |---|---|---|
 | **Brundage et al., "Toward Trustworthy AI Development: Mechanisms for Supporting Verifiable Claims" (2020)** | Position paper. Argues for third-party auditing of training, supply-chain transparency, and *verifiable claims about ML systems* as a research agenda. | Audits six concrete implementations of "verifiable claim about ML systems" and shows where the claims fall short of the property they purport to attest. |
 | **OpenMined, Confidential Computing Consortium reports (2021–2024)** | Surveys TEE platforms for ML, primarily training-side. | Shifts focus to **inference-time** attestation and provides per-system, line-numbered finding docs rather than platform-level overviews. |
-| **Mo et al., "Confidential Computing for Machine Learning: A Systematization of Knowledge" (2024)** | Systematizes confidential ML across training and inference, mostly platform-level. | Shifts from "what TEEs can do for ML" (defender-side capabilities survey) to "what TEE-AI verifiers can be tricked into saying" (offender-side gap survey). F4, F6, F7 do not appear in Mo et al. |
-| **Sigstore / SLSA / in-toto literature (Newman et al., Lipp et al.)** | Supply-chain integrity for builds. | F3 generalizes Sigstore's "authenticity-without-currency" gap to TEE-AI verifiers, and shows it concretely on Tinfoil and `nearai-cloud-verifier`. |
+| **Mo et al., "Confidential Computing for Machine Learning: A Systematization of Knowledge" (2024)** | Systematizes confidential ML across training and inference, mostly platform-level. | Shifts from "what TEEs can do for ML" (defender-side capabilities survey) to "what TEE-AI verifiers can be tricked into saying" (offender-side gap survey). F5, F6, F7 do not appear in Mo et al. |
+| **Sigstore / SLSA / in-toto literature (Newman et al., Lipp et al.)** | Supply-chain integrity for builds. | F4 generalizes Sigstore's "authenticity-without-currency" gap to TEE-AI verifiers, and shows it concretely on Tinfoil and `nearai-cloud-verifier`. |
 
 #### 6.3.3 Soundness vs. confidentiality
 
@@ -2096,9 +2096,9 @@ systemic issue. Fix them and the systems become sound."*
 > recurring across six independent implementations is by
 > definition not an implementation-quality story; it is a
 > story about which decisions are easy to defer and which are
-> easy to forget. F1 (unmeasured config) and F2 (opt-in policy
+> easy to forget. F1 (unmeasured config) and F3 (opt-in policy
 > defaults) recur because the property-to-measurement
-> translation has no compiler. F4 (trusted code interprets
+> translation has no compiler. F5 (trusted code interprets
 > attacker bytes) recurs because no language ecosystem treats
 > "this byte stream might be hostile to the deserializer"
 > as a default constraint. F7 (sampling unattested) recurs
@@ -2153,10 +2153,10 @@ work end-to-end on hardware."*
 >   `audit_attestation.py` against an evil `.pth`;
 > - the modelwrap PoC drives unmodified `pack.py` against a
 >   pre-placed output directory;
-> - three EphemeralML PoCs (F2 default policy; F6 signing-key
+> - three EphemeralML PoCs (F3 default policy; F6 signing-key
 >   chain; F9 RAG injection) drive unmodified `air_verify.rs`
 >   against crafted CWTs and operator-supplied verifying keys;
-> - two Power PoCs (F8 chain; F2 hardware_verifier:None) drive
+> - two Power PoCs (F8 chain; F3 hardware_verifier:None) drive
 >   the unmodified `a3s_power::tee::attestation::build_report_data`
 >   and `a3s_power::verify::verify_report` public functions.
 >
@@ -2188,7 +2188,7 @@ Honest scoping (the paper version should include this):
   `vllm-proxy`, and Tinfoil's `confidential-model-router` routes
   to vLLM/TGI/llama.cpp. F1–F9 cover their verifier/router code,
   but the code that actually handles user prompts and loads model
-  weights — where the F4 load-remote mechanism (§3.7) and the
+  weights — where the F5 load-remote mechanism (§3.7) and the
   whole confidentiality surface live — sits in that backend and
   was not audited here. This is the measured-≠-audited boundary
   (§3.2) at the level of the survey itself, and it is exactly the
@@ -2201,7 +2201,7 @@ Honest scoping (the paper version should include this):
 - **Only six systems are surveyed.** Every F-class has
   findings in multiple systems (§4.2), and **every F-class is
   anchored by ≥2 PoCs across ≥2 surveyed systems** (19 PoCs
-  total; F4 has 3 PoCs). Future work would broaden the
+  total; F5 has 3 PoCs). Future work would broaden the
   *systems* surveyed (candidates listed in §7.5) rather than
   backfill PoC coverage of existing systems.
 - **The attacks are demonstrated in this lab.** Per-system
@@ -2234,7 +2234,7 @@ each is meant to be actionable on its own.
   might ask for one or two more for breadth — natural candidates
   in §7.5.
 - **Coverage gaps.** Every failure mode F1–F9 is anchored by
-  **≥2 runnable PoCs across ≥2 surveyed systems** (F4 has 3 PoCs).
+  **≥2 runnable PoCs across ≥2 surveyed systems** (F5 has 3 PoCs).
   Total PoCs: 19. No F-class is single-system-anchored. Future
   work would broaden the systems surveyed (candidates in §7.5)
   rather than backfill PoC coverage of existing systems.
@@ -2263,11 +2263,11 @@ for "the date this dialogue starts" (T0).**
 | Vendor | Severity-summary | Primary contact | Embargo window | Public artifacts |
 |---|---|---|---|---|
 | Laminator (academic) | M (academic prototype) | Paper authors (corresponding author) | 30d courtesy, no public deployment to gate | Acknowledge in paper; no CVE |
-| Tinfoil (commercial, live) | H (F3 rollback, F6 SDK channel) | security contact via `tinfoil.sh` | 90d + extension on request | CVE if applicable; coordinate blog post |
-| NEAR AI Cloud (live service) | H (F3 NRAS-signature-skipped; F2 model-hash-skipped) | NEAR AI security contact | 90d | CVE if applicable |
-| Power / A3S (crates.io, EthCC demo) | H (F1 simulate-mode; F4 minijinja) | crate maintainer GitHub | 60d | crates.io yank advisory if mitigation requires it |
-| Cyntrisec / EphemeralML (early access) | M-H (F2 model-hash defaults; F6 SDK gap) | Cyntrisec security email | 90d | Coordinate joint blog post |
-| Tinfoil SDK (`tinfoil-go`) | H (F3 rollback) | same as Tinfoil | 90d | semver-major SDK release |
+| Tinfoil (commercial, live) | H (F4 rollback, F6 SDK channel) | security contact via `tinfoil.sh` | 90d + extension on request | CVE if applicable; coordinate blog post |
+| NEAR AI Cloud (live service) | H (F4 NRAS-signature-skipped; F3 model-hash-skipped) | NEAR AI security contact | 90d | CVE if applicable |
+| Power / A3S (crates.io, EthCC demo) | H (F1 simulate-mode; F5 minijinja) | crate maintainer GitHub | 60d | crates.io yank advisory if mitigation requires it |
+| Cyntrisec / EphemeralML (early access) | M-H (F3 model-hash defaults; F6 SDK gap) | Cyntrisec security email | 90d | Coordinate joint blog post |
+| Tinfoil SDK (`tinfoil-go`) | H (F4 rollback) | same as Tinfoil | 90d | semver-major SDK release |
 
 **Standard disclosure email skeleton.**
 
@@ -2310,8 +2310,8 @@ for "the date this dialogue starts" (T0).**
 ### 7.3 If the goal is a defensive review of an in-progress design
 
 Walk through §5's checklist top-to-bottom. Most items take an
-afternoon to audit; the high-leverage ones (F4 pickle
-elimination, F2 default policy, F6 SDK channel binding) take
+afternoon to audit; the high-leverage ones (F5 pickle
+elimination, F3 default policy, F6 SDK channel binding) take
 longer to fix than to find. The recipe:
 
 1. **Day 1 — joints map.** Sketch your system's eight joints
@@ -2327,7 +2327,7 @@ longer to fix than to find. The recipe:
 5. **Final day — composition review.** Use §3.6 to check that
    no two single-system mitigations compose into a new
    weakness (e.g., re-hashing on every call combined with
-   network model-fetching could turn F5 into F3).
+   network model-fetching could turn F2 into F4).
 
 ### 7.4 If the goal is to ship a new TEE-AI service
 
@@ -2354,7 +2354,7 @@ A starter ruleset:
   the live TLS leaf against the attested key.
 - Adopt safetensors / GGUF + `weights_only=True` everywhere a
   model file enters the trusted boundary. No surveyed system
-  that uses pickle has remained F4-clean.
+  that uses pickle has remained F5-clean.
 - Treat *every external-service response* as untrusted bytes
   until a signature is verified locally. The list includes
   NRAS, AMD KDS, Intel PCS, AWS Nitro CA, Sigstore Fulcio,
@@ -2369,14 +2369,14 @@ broader-systems dimension next:
 
 | System | Why it would extend the survey | Expected high-leverage F-classes |
 |---|---|---|
-| Full Tinfoil stack (`cvmimage` + `confidential-model-router` + `verifiable-reviewer`) | Production end-to-end TEE-AI service; tighter than the surveyed SDK slice; `verifiable-reviewer` is the canonical agentic example | F1, F5, F6, **F9** (verifiable-reviewer) |
-| Marlin / Oyster | TEE compute marketplace; multi-tenant attestation | F1, F2, F3 |
-| Phala Network | TEE-based decentralized compute; pRuntime + RA-Report | F1, F3 |
-| Confidential Containers (CoCo) | Multi-vendor TEE images; Kubernetes-native | F1, F5 |
-| AWS Bedrock-CC (if/when opens) | Hyperscaler verifier behavior; multi-component (TEE CPU + custom accelerator) | F2, F6, F7, **F8** |
-| OpenMined TEE-Syft | Federated learning + TEE provenance | F4 (autograd serialisation), F7 |
-| Vana / Atoma / Inference Labs (DePIN inference) | Decentralized inference with on-chain attestation | F3, F6, **F8** |
-| Apple PCC (Private Cloud Compute) | Hyperscaler attestation with public-research transparency; multi-node chain | F1, F5, F7, **F8** |
+| Full Tinfoil stack (`cvmimage` + `confidential-model-router` + `verifiable-reviewer`) | Production end-to-end TEE-AI service; tighter than the surveyed SDK slice; `verifiable-reviewer` is the canonical agentic example | F1, F2, F6, **F9** (verifiable-reviewer) |
+| Marlin / Oyster | TEE compute marketplace; multi-tenant attestation | F1, F3, F4 |
+| Phala Network | TEE-based decentralized compute; pRuntime + RA-Report | F1, F4 |
+| Confidential Containers (CoCo) | Multi-vendor TEE images; Kubernetes-native | F1, F2 |
+| AWS Bedrock-CC (if/when opens) | Hyperscaler verifier behavior; multi-component (TEE CPU + custom accelerator) | F3, F6, F7, **F8** |
+| OpenMined TEE-Syft | Federated learning + TEE provenance | F5 (autograd serialisation), F7 |
+| Vana / Atoma / Inference Labs (DePIN inference) | Decentralized inference with on-chain attestation | F4, F6, **F8** |
+| Apple PCC (Private Cloud Compute) | Hyperscaler attestation with public-research transparency; multi-node chain | F1, F2, F7, **F8** |
 | Anthropic Claude / OpenAI agentic tool-use endpoints (if TEE-fronted) | Reference agentic systems with tool-call sequences | **F9** primarily |
 | RAG-augmented TEE chatbots (any vendor) | Reference RAG context-binding gap | **F9** primarily |
 
@@ -2406,14 +2406,14 @@ audit.
    `<system>_soundness_finding.md`. The H-severity findings are
    tagged. Confirm whether your deployed version is affected.
 2. **First day.** Disable any opt-in policy bindings that were
-   defaulting to skip (the F2 class). The fix is policy-side,
+   defaulting to skip (the F3 class). The fix is policy-side,
    not code-side, and lives in your verifier configuration.
 3. **First week.** Audit any external-service response your
    verifier consumes whose signature is not locally verified
-   (F3). Add the verification, even if it requires pinning a
+   (F4). Add the verification, even if it requires pinning a
    trust root manually.
 4. **First month.** Replace any pickle-class deserialization
-   inside the trusted boundary (F4). For LLMs, safetensors or
+   inside the trusted boundary (F5). For LLMs, safetensors or
    GGUF + `weights_only=True` is the standard fix.
 5. **Ongoing.** Add the §5 checklist to your secure-development
    lifecycle. The runnable PoCs in this workspace make
@@ -2441,13 +2441,13 @@ one that fits the venue.
 > prototype, five commercial — share the same nine soundness gaps
 > in 2025–2026. **Single-enclave primitive (F1–F7):** (F1)
 > unmeasured configuration that leaks into the signed payload;
-> (F2) opt-in policy bindings whose absence silently passes; (F3)
+> (F3) opt-in policy bindings whose absence silently passes; (F4)
 > external evidence parsed without authentication — including the
 > currency-vs-authenticity distinction where a Sigstore-backed
 > signature does not protect against proxy-mediated rollback;
-> (F4) attacker-controlled bytes interpreted by the measured
+> (F5) attacker-controlled bytes interpreted by the measured
 > code, ranging from full pickle-RCE down to sandboxed
-> template-engine semantics hijack; (F5) cached registration-time
+> template-engine semantics hijack; (F2) cached registration-time
 > state standing in for runtime state, with both runtime-cache
 > and build-time-cache variants; (F6) the verifier's live channel
 > never re-checked against the attested key; (F7) per-inference
@@ -2514,7 +2514,7 @@ one that fits the venue.
 > GPU CC); F9 covers the horizontal composition of operator-
 > mediated bytes that wrap the inference call (RAG, tools,
 > history, output filters). For each of F1–F9 we built at
-> least two runnable proofs of concept (F4 has three) that
+> least two runnable proofs of concept (F5 has three) that
 > produce attestations a verifier accepts but that do not
 > match the underlying computation. **Nineteen PoCs total**,
 > all of which print "ATTACK CONFIRMED" against the original
@@ -2526,7 +2526,7 @@ one that fits the venue.
 > (Apple's PCC, Tinfoil, NEAR AI, Cyntrisec) point at when
 > they say "you don't have to trust us." That trust claim is
 > only as strong as the soundness of the joints we survey.
-> F1, F2, F6, F7, F8, and F9 each apply to systems carrying
+> F1, F3, F6, F7, F8, and F9 each apply to systems carrying
 > production traffic in 2026. The fixes are local; the
 > systemic problem is that *every joint has to be wired by
 > hand*, and current language ecosystems do not flag a
@@ -2785,12 +2785,12 @@ AI side can skip §9.5.
   that does not use pickle, so no arbitrary-code-execution risk
   at load.
 - **pickle** — Python's native serialization format; allows
-  arbitrary code execution on deserialization. The F4
+  arbitrary code execution on deserialization. The F5
   archetype.
 - **torch.load** — PyTorch's standard load function. Uses
   pickle by default unless `weights_only=True` is passed.
 - **chat template** — A Jinja2-style template that wraps user
-  messages into the model's expected prompt format. The F4
+  messages into the model's expected prompt format. The F5
   surface for Power's minijinja PoC.
 - **minijinja** — A Rust Jinja2-compatible template engine.
   Used inside Power for chat-template rendering.
@@ -2846,9 +2846,9 @@ AI side can skip §9.5.
 | MRENCLAVE | §9.1 | §1, §3 (F1) |
 | MRTD | §9.1 | §1, §3 (F1) |
 | RTMR | §9.1 | §1.5, §3 (F1) |
-| report_data | §9.2 | §1, §2 (joints), §3 (F2) |
-| AIR v1 | §9.3 | §3 (F4 reference fix), §5.7 |
-| Sigstore bundle | §9.4 | §3 (F3), §6.3 |
+| report_data | §9.2 | §1, §2 (joints), §3 (F3) |
+| AIR v1 | §9.3 | §3 (F5 reference fix), §5.7 |
+| Sigstore bundle | §9.4 | §3 (F4), §6.3 |
 | RA-TLS | §9.4 | §3 (F6), §6.1 |
 | sampling parameters | §9.5 | §3 (F7), §5.7 |
 | dishonest prover | §9.6 | every PoC |

@@ -34,7 +34,7 @@ single-enclave inference primitive; F8 covers vertical
 composition (CPU TEE + GPU CC); F9 covers horizontal composition
 (operator-mediated bytes around the inference call). **Every
 failure mode is demonstrated against at least two surveyed systems**;
-F4 is demonstrated against two systems via three PoCs (Laminator
+F5 is demonstrated against two systems via three PoCs (Laminator
 pickle twice, Power minijinja).
 
 **Sibling docs:**
@@ -58,19 +58,19 @@ pickle twice, Power minijinja).
 - **F1 — Configuration is unmeasured and flows into the signed payload.**
   The launch measurement covers code that reads config; the config
   itself is host-supplied and echoed into the attestation as-is.
-- **F2 — Integrity / policy bindings are opt-in.** The primitives
+- **F2 — Cached / registration-time state stands in for runtime
+  state.** The attestation reports a value computed once and never
+  re-checked against the bytes currently in use.
+- **F3 — Integrity / policy bindings are opt-in.** The primitives
   exist but default to skipped; the caller must set explicit
   expected values to engage them.
-- **F3 — External evidence is parsed without authenticating it.**
+- **F4 — External evidence is parsed without authenticating it.**
   The attested chain extends to a third party (NRAS, Sigstore,
   KDS/PCS), and the verifier reads the response without verifying
   its signature.
-- **F4 — Trusted code interprets attacker-controlled inputs.** The
+- **F5 — Trusted code interprets attacker-controlled inputs.** The
   measured code is itself an interpreter (pickle, eval, dynamic
   load) for bytes the attacker chose.
-- **F5 — Cached / registration-time state stands in for runtime
-  state.** The attestation reports a value computed once and never
-  re-checked against the bytes currently in use.
 - **F6 — Live channel is unbound from the attestation.** The
   attestation describes a key *K*; the verifier never re-checks
   that the live network channel (TLS / HPKE / signed-response
@@ -118,21 +118,21 @@ trust gap to forge a non-identity content field.
 
 | # | Attack | System | PoC | Taxonomy | Strict switching? |
 |---|---|---|---|---|---|
-| 1 | Switchable pickle loader | Laminator | `laminator_poc_dishonest_prover/demo_model_switching.py` | **F4 + F5** | **YES** |
+| 1 | Switchable pickle loader | Laminator | `laminator_poc_dishonest_prover/demo_model_switching.py` | **F5 + F2** | **YES** |
 | 2 | No model-identity binding *(WITHDRAWN — model is bound via `mr_config_id`+compose; see revision note)* | nearai-cloud-verifier | `nearai_poc_dishonest_prover/demo_no_model_binding.py` | ~~F1~~ | ~~YES~~ |
-| 3 | Stale attestation cache | A3S Power | `power_poc_dishonest_prover/src/main.rs` | **F5** | **YES** |
-| 4 | Build-time identity forgery | modelwrap | `modelwrap_poc_dishonest_prover/demo_skip_attack.py` | F5 (build-time) | sibling |
-| 5 | Opt-in policy default | EphemeralML | `ephemeralml_poc_dishonest_prover/src/main.rs` | F2 | sibling |
-| 6 | Unauthenticated NRAS JWT | nearai-cloud-verifier | `nearai_poc_dishonest_prover/demo_nras_jwt_unsigned.py` | F3 | sibling |
-| 7 | In-enclave metric forgery | Laminator | `laminator_poc_dishonest_prover/forge_attestation_payload.py` | F4 | sibling |
+| 3 | Stale attestation cache | A3S Power | `power_poc_dishonest_prover/src/main.rs` | **F2** | **YES** |
+| 4 | Build-time identity forgery | modelwrap | `modelwrap_poc_dishonest_prover/demo_skip_attack.py` | F2 (build-time) | sibling |
+| 5 | Opt-in policy default | EphemeralML | `ephemeralml_poc_dishonest_prover/src/main.rs` | F3 | sibling |
+| 6 | Unauthenticated NRAS JWT | nearai-cloud-verifier | `nearai_poc_dishonest_prover/demo_nras_jwt_unsigned.py` | F4 | sibling |
+| 7 | In-enclave metric forgery | Laminator | `laminator_poc_dishonest_prover/forge_attestation_payload.py` | F5 | sibling |
 | 8 | Live TLS channel unbound | nearai-cloud-verifier | `nearai_poc_dishonest_prover/demo_channel_unbound.py` | **F6** | sibling |
 | 9 | Sampling parameters unattested | EphemeralML | `ephemeralml_poc_dishonest_prover/src/bin/poc_f7.rs` | **F7** | sibling |
-| 10 | Operator-controlled Jinja chat template | A3S Power | `power_poc_dishonest_prover/src/bin/poc_f4_minijinja.rs` | F4 (narrow) | sibling |
-| 11 | Proxy-mediated release rollback | Tinfoil SDK | `tinfoil_poc_dishonest_prover/demo_proxy_rollback.py` | F3 (currency) | sibling |
+| 10 | Operator-controlled Jinja chat template | A3S Power | `power_poc_dishonest_prover/src/bin/poc_f4_minijinja.rs` | F5 (narrow) | sibling |
+| 11 | Proxy-mediated release rollback | Tinfoil SDK | `tinfoil_poc_dishonest_prover/demo_proxy_rollback.py` | F4 (currency) | sibling |
 | 12 | CPU↔GPU attestation chain unbound | A3S Power | `power_poc_dishonest_prover/src/bin/poc_f8_chain_unbound.rs` | **F8** (vertical composition) | sibling |
 | 13 | RAG / application-layer context unattested | EphemeralML | `ephemeralml_poc_dishonest_prover/src/bin/poc_f9_context_unattested.rs` | **F9** (horizontal composition) | sibling |
 | 14 | argv unmeasured → PoT payload | Laminator | `laminator_poc_dishonest_prover/demo_argv_unmeasured.py` | F1 (second system) | sibling |
-| 15 | `hardware_verifier: None` opt-in skip | A3S Power | `power_poc_dishonest_prover/src/bin/poc_f2_hardware_verifier_none.rs` | F2 (second system) | sibling |
+| 15 | `hardware_verifier: None` opt-in skip | A3S Power | `power_poc_dishonest_prover/src/bin/poc_f2_hardware_verifier_none.rs` | F3 (second system) | sibling |
 | 16 | Signing-key chain unbound to NSM | EphemeralML | `ephemeralml_poc_dishonest_prover/src/bin/poc_f6_signing_key_chain.rs` | F6 (second system) | sibling |
 | 17 | Sampling unattested in signed text | NEAR AI | `nearai_poc_dishonest_prover/demo_sampling_unattested.py` | F7 (second system) | sibling |
 | 18 | CPU↔GPU chain unbound | NEAR AI | `nearai_poc_dishonest_prover/demo_cpu_gpu_chain_unbound.py` | F8 (second system) | sibling |
@@ -143,12 +143,12 @@ paper's headline material; the "sibling" rows are real findings that round out
 the F1–F9 coverage but should not be presented as model switching.
 
 Attacks 10 and 11 were added specifically to close the
-*"≥2 systems per failure mode"* requirement for F4 and F3:
-prior to Attack 10, only Laminator demonstrated F4 (canonical
-pickle RCE); Attack 10 adds a narrower F4 instance via minijinja
+*"≥2 systems per failure mode"* requirement for F5 and F4:
+prior to Attack 10, only Laminator demonstrated F5 (canonical
+pickle RCE); Attack 10 adds a narrower F5 instance via minijinja
 template hijacking. Prior to Attack 11, only nearai had a high-
-severity F3 instance (the NRAS JWT); Attack 11 adds a second
-system (Tinfoil) with a rollback-flavored F3.
+severity F4 instance (the NRAS JWT); Attack 11 adds a second
+system (Tinfoil) with a rollback-flavored F4.
 
 Attacks 8 and 9 cover failure modes (F6, F7) that don't fit
 cleanly into F1–F5 and that were added after the original
@@ -166,14 +166,14 @@ history, output filters). Both PoCs drive the real, unmodified
 system code (Power's `build_report_data`; EphemeralML's
 `air_verify`) and end with `[+] ATTACK CONFIRMED`.
 
-Attacks 14–19 add **second-system anchors** to F1, F2, F6, F7,
+Attacks 14–19 add **second-system anchors** to F1, F3, F6, F7,
 F8, F9. After this round, every one of F1–F9 has ≥2 PoCs
 anchored across ≥2 surveyed systems. The new anchors:
 
 | F-class | Original anchor | Second anchor (Attacks 14–19) |
 |---|---|---|
 | F1 | ~~nearai (#2)~~ *withdrawn* | Laminator (#14, argv unmeasured); A3S/Power `A3S_TEE_SIMULATE` (instance) |
-| F2 | EphemeralML (#5, `AirVerifyPolicy::default`) | Power (#15, `hardware_verifier: None`) |
+| F3 | EphemeralML (#5, `AirVerifyPolicy::default`) | Power (#15, `hardware_verifier: None`) |
 | F6 | nearai (#8, `tls_verifier.py` opt-in) | EphemeralML (#16, signing-key chain unbound) |
 | F7 | EphemeralML (#9, AIR v1 no sampling fields) | NEAR AI (#17, signed text has no sampling slot) |
 | F8 | Power (#12, no NRAS-verdict-hash in report_data) | NEAR AI (#18, NRAS verdict reused across TDX quotes) |
@@ -195,8 +195,8 @@ Intel SGX + Gramine + Python/PyTorch in-enclave inference.
 
 **Finding.** [`laminator_soundness_finding.md`](laminator_soundness_finding.md), Finding 1 + "Reproduction" subsection.
 
-**Taxonomy.** **F4** (trusted code interprets attacker-controlled
-inputs) composed with **F5** (stale-cache analog: the file hash is
+**Taxonomy.** **F5** (trusted code interprets attacker-controlled
+inputs) composed with **F2** (stale-cache analog: the file hash is
 computed once at read, but the pickle then reads a *second* file
 that the host can rotate).
 
@@ -300,8 +300,8 @@ Pure-Rust LLM inference server for SEV-SNP / TDX / NVIDIA H100 CC.
 
 **Finding.** [`power_soundness_finding.md`](power_soundness_finding.md), composed §"P-1" + §"P-2".
 
-**Taxonomy.** **F5** — cached / registration-time state stands in
-for runtime state. Combined with F2 (the load-time re-check is
+**Taxonomy.** **F2** — cached / registration-time state stands in
+for runtime state. Combined with F3 (the load-time re-check is
 opt-in), the gap composes into the strict model-switching pattern.
 
 **Strict model switching? YES.** The endpoint-reported
@@ -349,12 +349,12 @@ work.
 Each of these is a real soundness finding worth keeping in the
 paper, but should be framed under its own F1–F9 slot rather than
 as model switching. The first wave (Attacks 4, 5, 6, 7, 10, 11)
-extends the F-class coverage to a second system per class for F3
-and F4, and demonstrates F1, F2 with high-severity instances.
+extends the F-class coverage to a second system per class for F4
+and F5, and demonstrates F1, F3 with high-severity instances.
 Attacks 8 and 9 introduce the F6 and F7 classes that don't fit
 into the original F1–F5 framing. Attacks 12–19 anchor the
 composition classes F8 and F9 and add second-system PoCs for
-F1, F2, F6, F7 so every F-class has ≥2 anchoring systems.
+F1, F3, F6, F7 so every F-class has ≥2 anchoring systems.
 
 ### Attack 4 — Build-time identity forgery (modelwrap)
 
@@ -366,8 +366,8 @@ by `cvmimage`.
 
 **Finding.** [`modelwrap_soundness_finding.md`](modelwrap_soundness_finding.md), Finding M-1.
 
-**Taxonomy.** **F5 build-time variant**. Power's F5 is a *runtime*
-cached value; modelwrap's F5 is the *build-time* analog — the
+**Taxonomy.** **F2 build-time variant**. Power's F2 is a *runtime*
+cached value; modelwrap's F2 is the *build-time* analog — the
 identity (root hash) is computed by a tool that trusts host-
 supplied state.
 
@@ -399,8 +399,8 @@ root hash. modelwrap exits 0.
 `--real-verity` variant additionally uses `veritysetup` to produce
 a Merkle tree downstream consumers would actually mount.
 
-**Paper framing.** Present as the build-time entry in the F5
-column. Adjacent to Power's F5 but distinct: Power has runtime
+**Paper framing.** Present as the build-time entry in the F2
+column. Adjacent to Power's F2 but distinct: Power has runtime
 identity drift, modelwrap has compile-time identity choice.
 
 ---
@@ -414,7 +414,7 @@ confidential inference stack with per-inference AIR v1 receipts.
 
 **Finding.** [`ephemeralml_soundness_finding.md`](ephemeralml_soundness_finding.md), Finding E-1.
 
-**Taxonomy.** **F2** — integrity / policy bindings are opt-in.
+**Taxonomy.** **F3** — integrity / policy bindings are opt-in.
 
 **Strict model switching? NO.** The identity field actually
 changes — each receipt honestly carries its own `model_hash`. The
@@ -445,12 +445,12 @@ the matching receipt passes, the mismatched one fails.
 **Status.** Local-only. The PoC is a small Rust binary path-
 depending on `EphemeralML/common`. Runs in seconds.
 
-**Paper framing.** Use as the canonical F2 example. The
+**Paper framing.** Use as the canonical F3 example. The
 striking thing here is that EphemeralML is otherwise the *most
 careful* verifier in the survey — verify-before-parse, closed
 claims map, fail-closed allowlists, `verify_strict` Ed25519,
 zero-padding rejection. That makes the one missed default
-particularly illustrative of the F2 pattern.
+particularly illustrative of the F3 pattern.
 
 ---
 
@@ -462,7 +462,7 @@ particularly illustrative of the F2 pattern.
 
 **Finding.** [`nearai_cloud_verifier_soundness_finding.md`](nearai_cloud_verifier_soundness_finding.md), Finding N-1.
 
-**Taxonomy.** **F3** — external evidence parsed without
+**Taxonomy.** **F4** — external evidence parsed without
 authentication.
 
 **Strict model switching? NO.** This is a verdict-injection
@@ -494,9 +494,9 @@ in.
 
 **Status.** Local-only. The PoC runs in milliseconds.
 
-**Paper framing.** F3's canonical example. Pairs naturally with
+**Paper framing.** F4's canonical example. Pairs naturally with
 Attack 2 (also nearai): an operator using F1 to swap the CPU-side
-attestation field would compound the attack by using F3 to fake
+attestation field would compound the attack by using F4 to fake
 the GPU-side attestation field.
 
 ---
@@ -510,7 +510,7 @@ the GPU-side attestation field.
 
 **Finding.** [`laminator_soundness_finding.md`](laminator_soundness_finding.md), Finding 1 (same gap as Attack 1; different exploitation surface).
 
-**Taxonomy.** **F4** — trusted code interprets attacker-controlled
+**Taxonomy.** **F5** — trusted code interprets attacker-controlled
 inputs.
 
 **Strict model switching? NO.** This is metric forgery via the
@@ -542,9 +542,9 @@ the PoC produces is byte-identical (modulo timestamps) to what
 real SGX hardware would emit; the only difference is the placeholder
 quote bytes vs. real Intel-signed bytes.
 
-**Paper framing.** Demonstrates F4's other consequence besides
+**Paper framing.** Demonstrates F5's other consequence besides
 switching: even a single attestation can be forged on a content
-field that's *not* the model hash. Useful as the second F4 example
+field that's *not* the model hash. Useful as the second F5 example
 to show the breadth of the deserialization gap.
 
 ---
@@ -667,13 +667,13 @@ CDDL, not just hardening defaults.
 **PoC.** [`power_poc_dishonest_prover/src/bin/poc_f4_minijinja.rs`](power_poc_dishonest_prover/src/bin/poc_f4_minijinja.rs)
 
 **Finding.** New (paper-framing note in
-`unified_tee_ai_attestation_soundness.md` §3 F4); not in
+`unified_tee_ai_attestation_soundness.md` §3 F5); not in
 `power_soundness_finding.md`'s original list.
 
-**Taxonomy.** **F4 (narrow)** — trusted code interprets attacker-
+**Taxonomy.** **F5 (narrow)** — trusted code interprets attacker-
 controlled inputs. The interpreter here is `minijinja`, which is
 sandboxed and *cannot* run shell commands or read files. So this
-is narrower than Laminator's pickle-RCE F4. But the same
+is narrower than Laminator's pickle-RCE F5. But the same
 conceptual pattern applies: a trusted-code interpreter inside the
 enclave evaluates attacker-supplied logic, and the resulting
 strings are what the model sees.
@@ -736,13 +736,13 @@ covers the chat template or the rendered prompt.
 **Status.** Local-only. Pure Rust, no GPU, no SEV-SNP / TDX
 hardware needed. Runs in seconds.
 
-**Paper framing.** F4 was previously a single-system class
+**Paper framing.** F5 was previously a single-system class
 (Laminator pickle). Attack 10 adds a second system instance
 through a different mechanism (sandboxed template engine), which
-shows F4 isn't strictly "pickle-style RCE" — it's "any
+shows F5 isn't strictly "pickle-style RCE" — it's "any
 interpreter the measured code runs against attacker-controlled
 inputs." Useful counterpoint to Laminator: minijinja's sandbox
-prevents the RCE flavour of F4, but the conceptual gap still
+prevents the RCE flavour of F5, but the conceptual gap still
 produces a real attack.
 
 ---
@@ -751,13 +751,13 @@ produces a real attack.
 
 **System.** Tinfoil SDK (`github.com/tinfoilsh/tinfoil-go` and
 sibling SDKs). NOT covered in the original five-system survey;
-added to give F3 a second high-severity instance.
+added to give F4 a second high-severity instance.
 
 **PoC.** [`tinfoil_poc_dishonest_prover/demo_proxy_rollback.py`](tinfoil_poc_dishonest_prover/demo_proxy_rollback.py)
 
 **Finding.** [`tinfoil_sdk_soundness_finding.md`](tinfoil_sdk_soundness_finding.md), Finding Tinfoil-1.
 
-**Taxonomy.** **F3 (currency sub-flavor)** — external evidence
+**Taxonomy.** **F4 (currency sub-flavor)** — external evidence
 is authenticated *at signing time* but its currency relative to
 the verifier's request is not.
 
@@ -799,10 +799,10 @@ authenticity: the SDK's logic accepts whatever the proxy hands
 back so long as the downstream Sigstore verification passes,
 which it does for any historically-signed Tinfoil bundle.
 
-**Paper framing.** F3 was previously dominated by nearai's
+**Paper framing.** F4 was previously dominated by nearai's
 NRAS-JWT instance. Attack 11 adds a second system with a
-high-severity F3 finding via a different mechanism (proxy-mediated
-rollback rather than unverified JWT). Together they show F3 is
+high-severity F4 finding via a different mechanism (proxy-mediated
+rollback rather than unverified JWT). Together they show F4 is
 not a single-system anomaly.
 
 ---
@@ -969,10 +969,10 @@ Channel identity (which endpoint is talking)
 └── Attack 8: live TLS unbound from attestation     [nearai F6]
 
 Prompt rendering (what bytes reach model.forward)
-└── Attack 10: chat template hijack                 [Power F4-narrow]
+└── Attack 10: chat template hijack                 [Power F5-narrow]
 
 Release currency (which version of the prover code is "now")
-└── Attack 11: proxy-mediated rollback              [Tinfoil F3]
+└── Attack 11: proxy-mediated rollback              [Tinfoil F4]
 ```
 
 **By failure mode (F1–F9):**
@@ -980,10 +980,10 @@ Release currency (which version of the prover code is "now")
 | Class | Attacks | Systems with PoCs | Other systems with ≥M severity in §4 matrix |
 |---|---|---|---|
 | F1 missing binding | **14** (#2 nearai withdrawn) | **Laminator** | A3S/Power (`A3S_TEE_SIMULATE` instance) |
-| F2 opt-in policy | 5, **15** | EphemeralML, **Power** | nearai, Laminator |
-| F3 unauthenticated external | 6, 11 | nearai, Tinfoil SDK | Power (L), modelwrap (L) |
-| F4 trusted code interprets attacker inputs | 1, 7, 10 | Laminator, Power (narrow) | — |
-| F5 stale/build-time cache | 3, 4 | Power, modelwrap | Laminator, nearai, EphemeralML (all L/M) |
+| F3 opt-in policy | 5, **15** | EphemeralML, **Power** | nearai, Laminator |
+| F4 unauthenticated external | 6, 11 | nearai, Tinfoil SDK | Power (L), modelwrap (L) |
+| F5 trusted code interprets attacker inputs | 1, 7, 10 | Laminator, Power (narrow) | — |
+| F2 stale/build-time cache | 3, 4 | Power, modelwrap | Laminator, nearai, EphemeralML (all L/M) |
 | F6 live channel unbound | 8, **16** | nearai, **EphemeralML** | Power |
 | F7 sampling unattested | 9, **17** | EphemeralML, **NEAR AI** | Power (H) |
 | F8 cross-component chain | 12, **18** | Power, **NEAR AI** | EphemeralML (M), Tinfoil SDK (M) |
@@ -1005,7 +1005,7 @@ the dedicated PoCs serve as the primary demonstration.
 | modelwrap | 4 |
 | nearai | 2 (no-binding), 6 (JWT), 8 (channel), **17 (F7 sampling)**, **18 (F8 chain)**, **19 (F9 history)** |
 | EphemeralML | 5 (opt-in), 9 (sampling), 13 (app-layer context), **16 (F6 signing-key chain)** |
-| Power | 3 (stale cache), 10 (Jinja template), 12 (CPU↔GPU chain), **15 (F2 hardware_verifier:None)** |
+| Power | 3 (stale cache), 10 (Jinja template), 12 (CPU↔GPU chain), **15 (F3 hardware_verifier:None)** |
 | Tinfoil SDK | 11 (proxy rollback) |
 
 ### Chains and compositions
