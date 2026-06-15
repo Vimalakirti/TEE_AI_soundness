@@ -128,10 +128,72 @@ divergence from the build-time state causes a read error.
 
 ---
 
+## Vendor response (June 2026): the `tinfoil-config.yml` + reproducible-build defense
+
+After our disclosure, Tinfoil (Tanya, co-founder) pointed out a deployment-
+side gate we had not credited on first read: modelwrap's outputs are not
+consumed by `cvmimage` directly. They flow through a `tinfoil-config.yml`
+that pins `(model_name, hf_repo@revision, mpk_root_hash, cvm-version,
+container_image@sha256)`, and that config's SHA-256 is itself part of the
+launch measurement.
+
+We verified the chain end-to-end against the source:
+
+- `tinfoil/confidential-model-router/tinfoil-config.yml` and
+  `tinfoil/verifiable-reviewer/tinfoil-config.yml` are real examples that
+  pin the deployment artefacts (container image `@sha256:...`,
+  `cvm-version`, etc.) for each Tinfoil-hosted service.
+- `tinfoil/cvmimage/tinfoil/cmd/boot/config.go:142-167`
+  (`loadAndVerifyConfig`) reads the config from a virtio disk
+  (`/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_tinfoil-config`), SHA-256
+  hashes the bytes, and rejects boot unless the hash matches the
+  `tinfoil-config-hash` parameter on the kernel command line.
+- The kernel cmdline is part of the launch measurement, so a verifier who
+  pins `MEASUREMENT` transitively pins the config's hash, which pins the
+  mpk root hash, which dm-verity-binds the served model bytes.
+
+In addition, modelwrap is deterministic per `(model, revision,
+modelwrap_version, pinned_tool_versions)` so any third party can rebuild
+the mpk and confirm the published root hash. Reproducibility is the
+out-of-band integrity check; the in-band check is the
+config-hash-on-cmdline chain above.
+
+**Implication for the findings below.** M-1 through M-4 are *correct as
+structural observations about `pack.py`'s behaviour*, and the PoC drives
+the real script unmodified to demonstrate them. But the consequence
+chain to "verifier accepts attacker bytes" requires *also* corrupting
+`tinfoil-config.yml`, which requires CI/repo write access on the
+deployment-config repo *and* defeats reproducible-build verification. We
+have accordingly reframed M-1…M-4 from soundness findings to
+**build-host hygiene + auditor-convenience** findings. The findings still
+hold under any deployment that does *not* sit behind a measured signed
+config + reproducible build (e.g., third-party adopters of modelwrap who
+copy the tool but not the surrounding pipeline). For Tinfoil's deployed
+services specifically, the integrity argument routes through the config
+chain above.
+
+The one residual composition concern that remains is whether M-1 can
+chain with the `tinfoil-go` SDK's proxy-mediated rollback
+(`tinfoil_sdk_soundness_finding.md`, Finding Tinfoil-1): a historical
+signed `tinfoil-config.yml` that happens to reference a historical mpk
+root hash that an attacker can match would defeat both gates. Tinfoil
+has indicated a planned monotonic CVM-version floor in the SDK; we have
+asked whether that floor will also apply to deployment-config-repo
+versions, since otherwise the composition remains open.
+
+---
+
 ## Finding M-1 — Pre-existing output files bypass the build
 
-**Severity:** High. The core "build-time integrity" claim collapses if the
-builder can place outputs in `output/` before invoking modelwrap.
+**Severity (as-deployed, Tinfoil pipeline):** Build-host hygiene. Per the
+vendor-response section above, escalation to verifier-accepting attestation
+requires *also* corrupting the signed `tinfoil-config.yml` (CI/repo write
+access) and survives only if the reproducible-build cross-check is skipped.
+
+**Severity (third-party adopters of `modelwrap` without the surrounding
+signed-config + reproducible-build pipeline):** High. The core "build-time
+integrity" claim of the standalone script collapses if the builder can
+place outputs in `output/` before invoking modelwrap.
 
 **Location:** `pack.py:58-71` and `pack.py:77-102`
 
@@ -187,8 +249,14 @@ the stdout looks normal, the file format is valid.
 
 ## Finding M-2 — Optional `@revision` lets HEAD float
 
-**Severity:** Medium. Lets a builder produce an "official-looking" output
-for a moving target.
+**Severity (as-deployed, Tinfoil pipeline):** Deployment-config-lint. The
+deployment-side `tinfoil-config.yml` pins the full commit, so the
+modelwrap-time HEAD resolution does not propagate to the verifier. The
+right hardening is to require the version pinned in `tinfoil-config.yml`,
+which Tinfoil already does in practice.
+
+**Severity (standalone use):** Medium. Lets a builder produce an
+"official-looking" output for a moving target.
 
 **Location:** `pack.py:25-31`
 
@@ -265,7 +333,13 @@ new bytes if HF Hub's CAS guarantees were violated. More realistic risk:
 
 ## Finding M-4 — Output artifacts are unsigned
 
-**Severity:** Medium.
+**Severity (as-deployed, Tinfoil pipeline):** Hygiene. The signing happens
+one layer up at `tinfoil-config.yml`, which is what the verifier ultimately
+checks. An artefact-level signature on `.info` / `.mpk` would not block
+the CI/repo-compromise scenario that an attacker would need anyway.
+
+**Severity (third-party adopters who do not have an equivalent signed
+upper-layer config):** Medium.
 
 **Location:** `pack.py` produces `.mpk` and `.info`; the script does not
 sign either.
@@ -328,6 +402,11 @@ consumer no field that would tell them "this hash should correspond to
 
 **Mitigation:** Extend `.info` to a JSON or TOML structure that includes
 model name, revision, image-tag digest, and (per M-4) a signature.
+
+**Vendor response (accepted, June 2026):** Tinfoil has committed to
+recording the modelwrap commit + model commit alongside the root hash in
+`tinfoil-config.yml`, which addresses the substance of the auditor-
+convenience concern at the upper-layer artefact rather than at `.info`.
 
 ---
 
@@ -423,15 +502,19 @@ name.
 
 ## Summary table
 
-| # | Title | Severity | Root cause | One-line fix |
-|---|-------|----------|------------|--------------|
-| M-1 | Pre-existing outputs bypass build | High | Idempotency check trusts host-mounted output dir | Refuse if output exists, or rebuild and compare |
-| M-2 | Optional `@revision` | Medium | Script resolves HEAD when omitted | Require `@hash`, record resolved hash in `.info` |
-| M-3 | HF Hub LFS integrity is trust root | Acknowledged | External dependency | Pin `huggingface_hub` version, re-verify LFS hashes |
-| M-4 | Outputs unsigned | Medium | No signature on `.info` / `.mpk` | Sign `.info` with build-time key, verify downstream |
-| M-5 | `.info` carries no model identity | Low | Format is `roothash_offset_uuid` only | Extend `.info` with model name + commit + signature |
-| M-6 | `HF_TOKEN` unmeasured | Low | Env var selects content view | Document, or refuse token for public models |
-| M-7 | Cache dir bind-mounted | Low | Host can pre-populate | Use tmpfs, or pin huggingface_hub LFS-verify version |
+Two columns are shown for severity: *as-deployed (Tinfoil pipeline with
+signed `tinfoil-config.yml` + reproducible build)* and *standalone /
+third-party adopter (no equivalent upper-layer config)*.
+
+| # | Title | Sev. (Tinfoil pipeline) | Sev. (standalone) | Root cause | One-line fix |
+|---|-------|------------------------|--------------------|------------|--------------|
+| M-1 | Pre-existing outputs bypass build | Build-host hygiene | High | Idempotency check trusts host-mounted output dir | Refuse if output exists, or rebuild and compare |
+| M-2 | Optional `@revision` | Deployment-config-lint | Medium | Script resolves HEAD when omitted | Require `@hash`, record resolved hash in `.info` |
+| M-3 | HF Hub LFS integrity is trust root | Acknowledged | Acknowledged | External dependency | Pin `huggingface_hub` version, re-verify LFS hashes |
+| M-4 | Outputs unsigned | Hygiene | Medium | No signature on `.info` / `.mpk` | Sign `.info` with build-time key, verify downstream |
+| M-5 | `.info` carries no model identity | Resolved (Tinfoil to record commits in `tinfoil-config.yml`) | Low | Format is `roothash_offset_uuid` only | Extend `.info` with model name + commit + signature |
+| M-6 | `HF_TOKEN` unmeasured | Low | Low | Env var selects content view | Document, or refuse token for public models |
+| M-7 | Cache dir bind-mounted | Low | Low | Host can pre-populate | Use tmpfs, or pin huggingface_hub LFS-verify version |
 
 ---
 
@@ -442,5 +525,13 @@ name.
 > were produced by its own invocations of `mkfs.erofs` and `veritysetup`,
 > and the output format carries no model identity or signature, so a
 > downstream consumer who only sees the `.info` file cannot distinguish a
-> legitimate build from a hand-crafted artifact. The root-hash → model
-> binding lives entirely in out-of-band conventions.*
+> legitimate build from a hand-crafted artefact. In Tinfoil's own
+> deployment pipeline the root-hash → model binding is rescued by an
+> upper-layer signed `tinfoil-config.yml` (whose SHA-256 is on the kernel
+> cmdline and therefore in the launch measurement) plus deterministic
+> reproducibility, so M-1…M-4 reduce to build-host hygiene + auditor
+> convenience for first-party Tinfoil services. For any third party who
+> adopts `modelwrap` without inheriting that surrounding pipeline, the
+> same findings remain soundness-level: the standalone tool ships an
+> opaque, unsigned, name-less `.info` whose only integrity comes from
+> the builder's good intentions.*
