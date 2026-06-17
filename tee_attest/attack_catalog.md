@@ -182,6 +182,14 @@ anchored across ≥2 surveyed systems. The new anchors:
 Together: 18 standing PoCs (19 demo scripts, Attack 2 withdrawn); most F-classes anchored by ≥2 systems ($F_1$ now Laminator + A3S/Power's `A3S_TEE_SIMULATE` instance),
 6 systems covered, all original system trees untouched.
 
+> **Post-disclosure note (June 2026).** Laminator's three PoCs (Attacks 1, 7,
+> 14 — `F5`/`F2` pickle and `F1` argv) were **fixed upstream** after disclosure
+> (`weights_only=True`, commit `2fbdab6`; argv pinning + `report_data` hashing,
+> `e7282ee`/`ad39588`). They remain valid against the disclosed commit
+> `ce2d10b` and are retained as such. Class anchoring is unaffected: `F5` is
+> also held by Power's minijinja PoC (#10) and `F1` by A3S/Power's
+> `A3S_TEE_SIMULATE`. See `laminator_soundness_finding.md` for status detail.
+
 ---
 
 ## 3. The strict model-switching attacks (Attacks 1 and 3; Attack 2 withdrawn)

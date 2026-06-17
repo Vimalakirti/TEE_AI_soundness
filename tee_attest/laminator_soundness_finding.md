@@ -16,6 +16,27 @@ pickle deserialization, and several less severe gaps compound it.
 
 All findings refer to the repository state at commit `ce2d10b`.
 
+> **Vendor response (June 2026).** The Laminator authors (Duddu, Järvinen,
+> Gunn, Asokan) replied substantively to all five disclosed issues and
+> **fixed two**: Finding 1 (`torch.load` pickle RCE) via `weights_only=True`
+> on all three load sites (commit `2fbdab6`), and Finding 2 (unmeasured
+> `argv`) by removing `insecure__use_cmdline_argv`, pinning `loader.argv`,
+> and hashing result-affecting parameters into `report_data` (commits
+> `e7282ee`, `ad39588`). They contested Findings 4 and 5, and on review the
+> contests are substantially correct (see the per-finding notes):
+> we **downgrade Finding 4** — the architecture-ambiguity attack depended on
+> the now-fixed pickle path, and default-strict `load_state_dict` plus
+> dataset-keyed class selection pins the architecture — and **withdraw
+> Finding 5 as a soundness gap** — IOAtt evaluation is deterministic
+> (`model.eval()` + `torch.no_grad()`, `main.py:391`), so binding the input
+> bytes substitutes for channel binding; the residual is ergonomic/freshness
+> and bites only for non-deterministic inference. Finding 6 is confirmed
+> by-design by the authors. One thread remains open: whether
+> `model_size`/`architecture` is among the parameters now hashed into
+> `report_data` (this is what closes Findings 2 and 4 together). The PoCs in
+> [`laminator_poc_dishonest_prover/`](laminator_poc_dishonest_prover/)
+> reproduce against the disclosed commit `ce2d10b`; the fixes above postdate it.
+
 A working proof of concept for **Finding 1** lives at
 [`laminator_poc_dishonest_prover/`](laminator_poc_dishonest_prover/).
 Running `./run_poc.sh` produces a `census_model.pth` that, when loaded
@@ -250,7 +271,12 @@ rebinding and runtime attribute assignment on imported objects.
 - migrate the on-disk format to safetensors and load via
   `safetensors.torch.load_file`.
 
-Currently neither is done.
+**Vendor status — FIXED.** Commit `2fbdab6` applies `weights_only=True` to
+all three `torch.load` sites (`main.py:291, 361, 384`), closing the pickle
+RCE. The PoC reproduces against the disclosed commit `ce2d10b`, which
+predates the fix. Residual: the attacker still controls tensor *contents*,
+but can no longer execute code or hot-patch `utils.test`; wrong weights are
+caught by the other bindings.
 
 ---
 
@@ -308,6 +334,13 @@ reported metric.
 - Remove `insecure__use_cmdline_argv`, or
 - Hash `argv` into the payload itself so it is bound by `REPORTDATA`, or
 - Move all configuration into a `trusted_file` so its hash is part of MRENCLAVE.
+
+**Vendor status — FIXED.** Commits `e7282ee` and `ad39588` remove
+`insecure__use_cmdline_argv`, pin `loader.argv`, and hash every
+result-affecting parameter into `report_data` at runtime. Open confirmation:
+that the hashed set is *complete* (notably `model_size`/`architecture`) and
+that the new pass-through-environment-variable path does not reintroduce an
+unmeasured host channel the way `argv` did.
 
 ---
 
@@ -379,6 +412,19 @@ model.
   into a single commitment, e.g., hash a canonical serialization that
   refuses to load if the architecture class changes.
 
+**Vendor status — DOWNGRADED (effectively closed).** The composed attack
+above (steps 1–3) relies on the Finding 1 pickle path to do call-stack-
+dependent dict selection; with `weights_only=True` that path is gone. The
+standalone residual is small: `args.dataset` selects the model *class family*
+(`CENSUS→LinearNet`, `UTKFACE→VGGBinary`, `IMDB→SentimentRNN`), default-strict
+`load_state_dict` plus the state-dict shapes pin the *depth* (a wrong-shape
+`.pth` fails to load), and the Finding 2 fix binds the `model_size`/
+`architecture` label into `report_data`. The authors' framing ("architecture
+follows from the attested dataset identifier") is therefore correct in
+outcome but incomplete in mechanism: the dataset pins only the class family;
+strict-load and the `report_data` binding pin the depth. Open confirmation as
+in Finding 2.
+
 ---
 
 ## Finding 5 — No secure user→enclave channel for IOAtt inputs
@@ -418,6 +464,19 @@ nonce / freshness primitive binds the user's challenge into `REPORTDATA`.
 - Or at minimum, require the user to provide a nonce that the enclave
   includes in the payload.
 
+**Vendor status — WITHDRAWN as a soundness gap (deterministic prototype).**
+IOAtt runs `model.eval()` + `torch.no_grad()` (`main.py:391–400`), so the
+label output is deterministic. The attestation already binds the input bytes,
+so a verifier who checks the attested input hash against their intended query
+detects substitution without channel binding, and determinism rules out
+output cherry-picking — exactly the authors' argument. The "Detection"
+paragraph above already conceded this. Two residuals survive as
+*documentation*, not soundness, points: (i) no client-side helper recomputes
+`h(I)`, so the verifier must; and (ii) the guarantee rests on determinism, so
+it weakens for non-deterministic/generative inference (the regime of the
+authors' newer PAL\*M work), where a verifier-supplied nonce would again be
+needed. We withdraw this as a soundness finding for the current prototype.
+
 ---
 
 ## Finding 6 — Datasets are allowed_files (no integrity beyond hash)
@@ -450,6 +509,13 @@ hardcoded `test_certifications` dict with placeholder MRENCLAVE strings.
 **Mitigation:** Document the dataset-certifier dependency as a deployment
 requirement. Provide reference code that fetches and pins
 known-good `dataset-hash` values for the benchmark datasets.
+
+**Vendor status — CONFIRMED by-design.** The authors confirm host-controlled
+datasets are intentional and that AccAtt soundness rests on the attested
+`h(D)`, not on the certifier: the certifier only links that hash to a
+well-known name, which a verifier can check directly for public benchmarks.
+The only residual is the unimplemented name→hash registry for
+private/held-out test sets, which they scope out. No disagreement.
 
 ---
 
@@ -623,6 +689,14 @@ in-enclave code has been redirected by the attacker's pickle.
 | 6 | Datasets are `allowed_files` | Acknowledged | needs external certifier | wire in dataset registry |
 | 7 | Training non-determinism | Medium | no fixed RNG seed | pin seed, include in `T` |
 | 8 | Verifier ships as PoC | Low | placeholder MRENCLAVE / permissive template | versioned signed registry |
+
+**Post-disclosure status (June 2026):** Findings 1 and 2 **fixed upstream**
+(`2fbdab6`; `e7282ee`, `ad39588`); Finding 4 **downgraded** (depended on the
+fixed pickle path; otherwise pinned by strict-load + dataset class family +
+`report_data` binding); Finding 5 **withdrawn** as a soundness gap
+(deterministic IOAtt + input binding); Finding 6 **confirmed by-design**.
+Findings 3, 7, 8 were not part of the disclosure thread. See the per-finding
+"Vendor status" notes and the banner at the top.
 
 ---
 

@@ -118,6 +118,27 @@ attachment; the runnable PoCs under
 - `laminator_soundness_finding.md`
 - `laminator_poc_dishonest_prover/` (all PoCs)
 
+**Vendor response (June 2026).** The authors (Duddu, Järvinen, Gunn, Asokan;
+Lachlan Gunn leading implementation) replied per-finding and **fixed two**:
+- *Pickle RCE (Finding 1):* `weights_only=True` on all three `torch.load`
+  sites — commit `2fbdab6`.
+- *Unmeasured argv (Finding 2):* removed `insecure__use_cmdline_argv`, pinned
+  `loader.argv`, moved config to pass-through env vars hashed into
+  `report_data` — commits `e7282ee`, `ad39588`.
+- *Architecture (Finding 4):* contested; we downgraded (depended on the fixed
+  pickle path; strict-load + dataset class family + `report_data` binding pin
+  it). Open: confirm `model_size`/`architecture` is in the hashed set.
+- *IOAtt channel (Finding 5):* contested via determinism (`model.eval()`);
+  we withdrew it as a soundness gap for the deterministic prototype.
+- *Datasets (Finding 6):* confirmed by-design (attestation binds `h(D)`;
+  certifier is naming only).
+
+They also pointed us to a newer framework, PAL\*M (`arxiv.org/abs/2601.16199`),
+for attesting properties of generative models. Our reply: accept 1/2/6,
+confirm the downgrade of 4 and withdrawal of 5, and ask the one open
+hashed-parameter-set question. See `laminator_soundness_finding.md` for the
+per-finding "Vendor status" notes.
+
 ---
 
 ## 2. Tinfoil — `modelwrap` build-time tool + `tinfoil-go` SDK

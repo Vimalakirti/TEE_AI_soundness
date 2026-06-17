@@ -7,6 +7,11 @@ three scripts that together show how a dishonest prover serves a
 mismatched model while producing an attestation that names a
 wholly different (high) accuracy.
 
+> **Status (June 2026):** fixed upstream after disclosure — `torch.load(...,
+> weights_only=True)` in commit `2fbdab6`, and the unmeasured-`argv` path in
+> `e7282ee`/`ad39588`. This PoC targets the **disclosed commit `ce2d10b`**,
+> which predates those fixes, and reproduces against it.
+
 The PoC has been verified on the host this directory ships in:
 
 ```text
