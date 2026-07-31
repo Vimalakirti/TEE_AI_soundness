@@ -1,3 +1,10 @@
+> **Paper-alignment notice (July 2026).** This document records the study's
+> development history and still contains the former nineteen-attack numbering
+> and early aggregate assessments. The final paper uses eighteen executable
+> witnesses, P1--P18. Use [`poc_index.md`](poc_index.md) for the authoritative
+> mapping, evaluated boundary, and post-disclosure status of each witness. The
+> former NEAR AI model-identity attack is withdrawn.
+
 # A Unified View of Soundness Gaps in TEE-Based AI Attestation Systems
 
 > **Revision note (post-disclosure, 2026-06).** Vendor responses revised the
