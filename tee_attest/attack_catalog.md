@@ -1,3 +1,11 @@
+> **Paper-alignment notice (July 2026).** This is a historical working
+> catalog whose Attack 1--19 numbering predates the final paper. The active
+> paper corpus contains eighteen executable witnesses, P1--P18, indexed in
+> [`poc_index.md`](poc_index.md). The former NEAR AI model-identity attack is
+> withdrawn after maintainer clarification and is not an active witness.
+> Legacy severity labels and aggregate counts below are preserved as research
+> history and should not be used as the paper's claim summary.
+
 # TEE-AI Attestation: A PoC-Backed Attack Catalog
 
 > **Revision note (post-disclosure, 2026-06).** Vendor responses revised this
