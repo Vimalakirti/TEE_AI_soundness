@@ -1,3 +1,12 @@
+> **Current status.** The earlier "no model identity binding" case described
+> in this historical harness was withdrawn after NEAR clarified that the
+> platform binds model identity through `mr_config_id` and its compose
+> measurement. Retained code for that case is a historical negative control,
+> not one of the paper's active P1--P18 witnesses. The active NEAR witnesses
+> are P8, P9, P12, P13, and P16 in [`../poc_index.md`](../poc_index.md), and
+> several concern the published illustrative client rather than the platform
+> trust boundary.
+
 # NEAR AI Cloud-Verifier Dishonest-Prover PoC
 
 Standalone proof of concept for the two structural soundness gaps
