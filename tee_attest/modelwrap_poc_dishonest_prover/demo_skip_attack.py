@@ -26,7 +26,7 @@ import shutil
 import sys
 import types
 
-DEFAULT_MODELWRAP_SRC = "/scratch/bjchen4_icgpu/tee_attest/tinfoil/modelwrap"
+DEFAULT_MODELWRAP_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tinfoil", "modelwrap")
 DEFAULT_OUTPUT_DIR = "./output"
 DEFAULT_CACHE_DIR = "./cache"
 DEFAULT_MODEL = "meta-llama/Llama-3.2-1B"

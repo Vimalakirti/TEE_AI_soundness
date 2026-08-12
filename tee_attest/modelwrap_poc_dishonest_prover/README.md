@@ -1,4 +1,7 @@
+ Modelwrap Dishonest-Prover PoC
 # Modelwrap Dishonest-Prover PoC
+
+> **Paper PoC IDs:** P4 (build-cache skip accepts pre-placed output, F2). See [`../POC_INDEX.md`](../POC_INDEX.md).
 
 Standalone proof of concept for **Finding M-1** from
 `../modelwrap_soundness_finding.md` (pre-existing output files bypass

@@ -12,7 +12,7 @@ set -euo pipefail
 export PYTHONDONTWRITEBYTECODE=1
 
 POC_DIR="$(cd "$(dirname "$0")" && pwd)"
-LAMINATOR_SRC="${LAMINATOR_SRC:-/scratch/bjchen4_icgpu/tee_attest/laminator/generate_attestations}"
+LAMINATOR_SRC="${LAMINATOR_SRC:-$(cd "$(dirname "$0")/../laminator/generate_attestations" 2>/dev/null && pwd)}"
 
 cd "$POC_DIR"
 
@@ -23,40 +23,40 @@ if [[ ! -d "$LAMINATOR_SRC" ]]; then
 fi
 
 echo "================================================================="
-echo "Stage 1/3 — build evil census_model.pth"
+echo "Stage 1/5 — build evil census_model.pth (setup)"
 echo "================================================================="
 python3 build_evil_model.py --laminator-src "$LAMINATOR_SRC"
 
 echo
 echo "================================================================="
-echo "Stage 2/3 — prove pickle attack patches utils.test in-process"
+echo "Stage 2/5 — P1 (F5, F2): pickle attack patches utils.test in-process"
 echo "================================================================="
 python3 demo_pickle_attack.py --laminator-src "$LAMINATOR_SRC"
 
 echo
 echo "================================================================="
-echo "Stage 3/4 — drive accuracy_attestation end-to-end and dump"
+echo "Stage 3/5 — P2 (F5): drive accuracy_attestation end-to-end and dump"
 echo "             the forged output_accuracy.json payload"
 echo "================================================================="
 python3 forge_attestation_payload.py --laminator-src "$LAMINATOR_SRC"
 
 echo
 echo "================================================================="
-echo "Stage 4/5 — switchable loader (variant)"
+echo "Stage 4/5 — P1 (F5, F2): switchable loader variant"
 echo "             fixed SHA-512, host-swappable model between calls"
 echo "================================================================="
 python3 demo_model_switching.py --laminator-src "$LAMINATOR_SRC"
 
 echo
 echo "================================================================="
-echo "Stage 5/5 — argv unmeasured (Attack #14, F1)"
+echo "Stage 5/5 — P5 (F1): argv unmeasured"
 echo "             same model, different argv → different PoT payloads"
 echo "================================================================="
 python3 demo_argv_unmeasured.py
 
 echo
 echo "================================================================="
-echo "All five stages completed. Stages 1-3 + Stage 4 are strict"
-echo "model-switching attacks (F4 + F5). Stage 5 is the F1 argv-"
-echo "unmeasured demo (Attack #14)."
+echo "All stages completed. Stages 2 and 4 are P1 (F5, F2); Stage 3 is"
+echo "P2 (F5); Stage 5 is P5 (F1), the argv-"
+echo "unmeasured demo."
 echo "================================================================="

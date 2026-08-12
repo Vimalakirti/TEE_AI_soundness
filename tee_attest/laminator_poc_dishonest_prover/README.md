@@ -1,4 +1,7 @@
+ Laminator Dishonest-Prover PoC
 # Laminator Dishonest-Prover PoC
+
+> **Paper PoC IDs:** P1 (pickle RCE + model switching, F5/F2), P2 (accuracy-metric forgery, F5), P5 (argv unmeasured, F1). See [`../POC_INDEX.md`](../POC_INDEX.md).
 
 A standalone proof-of-concept that demonstrates **Finding 1** from
 `../laminator_soundness_finding.md` ("`torch.load` pickle RCE inside

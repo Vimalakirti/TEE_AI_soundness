@@ -6,7 +6,7 @@
 > 01‖SHA256(app_compose) with Sigstore-pinned image digests, so the F1 claim
 > does not hold. There are **19 demo scripts on disk but 18 standing findings**
 > (Attack 2 withdrawn) — counts of "nineteen" below refer to the demo set; the
-> standing count is **18**. **Strict model switching now covers Attacks 1 and 3
+> standing count is **18**. The canonical paper numbering is **P1--P18**; see [`POC_INDEX.md`](POC_INDEX.md) for the P-id to system, reviewed-commit, source-path, and expected-output map. **Strict model switching now covers Attacks 1 and 3
 > only.** NEAR AI's NRAS-JWT finding (N-1) is **downgraded to defense-in-depth**
 > (the client fetches the verdict over CA-verified TLS, so there is no MITM
 > position). $F_1$ is now anchored by Laminator's argv PoC, with A3S/Power's

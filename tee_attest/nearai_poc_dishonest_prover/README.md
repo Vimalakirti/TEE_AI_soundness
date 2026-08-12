@@ -1,4 +1,7 @@
+ NEAR AI Cloud-Verifier Dishonest-Prover PoC
 # NEAR AI Cloud-Verifier Dishonest-Prover PoC
+
+> **Paper PoC IDs:** P8 (sampling, F7), P9 (channel opt-in, F6), P12 (CPU/GPU verdict reuse, F8), P13 (NRAS JWT unsigned, F4), P16 (history injection, F9). The 'no model-identity binding' demo is withdrawn (not one of the 18). See [`../POC_INDEX.md`](../POC_INDEX.md).
 
 Standalone proof of concept for the two structural soundness gaps
 in `nearai-cloud-verifier`:

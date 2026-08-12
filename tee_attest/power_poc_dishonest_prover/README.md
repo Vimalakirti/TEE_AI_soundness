@@ -1,4 +1,7 @@
+ A3S Power Dishonest-Prover PoC
 # A3S Power Dishonest-Prover PoC
+
+> **Paper PoC IDs:** P3 (stale attestation cache, F2), P6 (Jinja template, F5), P11 (CPU/GPU chain unbound, F8), P18 (hardware_verifier None, F3). See [`../POC_INDEX.md`](../POC_INDEX.md).
 
 Standalone proof of concept for the composed **P-1 + P-2** attack
 from `../power_soundness_finding.md` (cached attestation hash + opt-

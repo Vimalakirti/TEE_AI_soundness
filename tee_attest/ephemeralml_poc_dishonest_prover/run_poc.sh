@@ -18,25 +18,25 @@ rustup run "$RUST_TOOLCHAIN" cargo build --release
 
 echo
 echo "================================================================="
-echo "Run F2 PoC — default policy accepts arbitrary model_hash"
+echo "Run P17 (F3) — default policy accepts arbitrary model_hash"
 echo "================================================================="
 ./target/release/poc
 
 echo
 echo "================================================================="
-echo "Run F7 PoC — sampling parameters unattested"
+echo "Run P7 (F7) — sampling parameters unattested"
 echo "================================================================="
 ./target/release/poc_f7
 
 echo
 echo "================================================================="
-echo "Run F9 PoC (Attack 13) — application-layer context unattested"
+echo "Run P15 (F9) — application-layer (RAG) context unattested"
 echo "================================================================="
 ./target/release/poc_f9_context_unattested
 
 echo
 echo "================================================================="
-echo "Run F6 PoC (Attack 16) — signing-key chain unbound (E-4)"
+echo "Run P10 (F6) — signing-key chain unbound"
 echo "================================================================="
 ./target/release/poc_f6_signing_key_chain
 

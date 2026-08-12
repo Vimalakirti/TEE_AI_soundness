@@ -39,7 +39,7 @@ import os
 import sys
 
 
-DEFAULT_NEARAI_SRC = "/scratch/bjchen4_icgpu/tee_attest/nearai-cloud-verifier"
+DEFAULT_NEARAI_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "nearai-cloud-verifier")
 
 
 def _import_jwt_decoder(nearai_src: str):

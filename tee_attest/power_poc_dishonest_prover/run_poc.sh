@@ -17,25 +17,25 @@ rustup run "$RUST_TOOLCHAIN" cargo build --release
 
 echo
 echo "================================================================="
-echo "Run F5 PoC (Attack 3) — stale attestation cache"
+echo "Run P3 (F2) — stale attestation cache"
 echo "================================================================="
 ./target/release/poc
 
 echo
 echo "================================================================="
-echo "Run F4 PoC (Attack 10) — operator-controlled Jinja template"
+echo "Run P6 (F5) — operator-controlled Jinja template"
 echo "================================================================="
 ./target/release/poc_f4_minijinja
 
 echo
 echo "================================================================="
-echo "Run F8 PoC (Attack 12) — CPU↔GPU attestation chain unbound"
+echo "Run P11 (F8) — CPU↔GPU attestation chain unbound"
 echo "================================================================="
 ./target/release/poc_f8_chain_unbound
 
 echo
 echo "================================================================="
-echo "Run F2 PoC (Attack 15) — hardware_verifier: None opt-in"
+echo "Run P18 (F3) — hardware_verifier: None opt-in"
 echo "================================================================="
 ./target/release/poc_f2_hardware_verifier_none
 

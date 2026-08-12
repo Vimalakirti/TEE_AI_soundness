@@ -54,7 +54,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-DEFAULT_NEARAI_SRC = "/scratch/bjchen4_icgpu/tee_attest/nearai-cloud-verifier"
+DEFAULT_NEARAI_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "nearai-cloud-verifier")
 
 # Constant signing address for the attestation; would be derived from
 # a real signing key in production.

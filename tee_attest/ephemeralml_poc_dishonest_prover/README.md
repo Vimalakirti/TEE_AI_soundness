@@ -1,4 +1,7 @@
+ EphemeralML / Cyntrisec Dishonest-Prover PoC
 # EphemeralML / Cyntrisec Dishonest-Prover PoC
+
+> **Paper PoC IDs:** P7 (sampling unattested, F7), P10 (signing-key chain, F6), P15 (RAG context, F9), P17 (default policy pins no identity, F3). See [`../POC_INDEX.md`](../POC_INDEX.md).
 
 Standalone proof of concept for **Finding E-1** from
 `../ephemeralml_soundness_finding.md` (`AirVerifyPolicy::default()`

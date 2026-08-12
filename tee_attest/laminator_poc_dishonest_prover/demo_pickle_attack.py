@@ -23,7 +23,7 @@ import sys
 
 import torch
 
-DEFAULT_LAMINATOR_SRC = "/scratch/bjchen4_icgpu/tee_attest/laminator/generate_attestations"
+DEFAULT_LAMINATOR_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "laminator", "generate_attestations")
 DEFAULT_EVIL_PATH = "census_model.pth"
 
 

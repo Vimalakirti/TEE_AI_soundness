@@ -8,7 +8,7 @@ set -euo pipefail
 export PYTHONDONTWRITEBYTECODE=1
 
 POC_DIR="$(cd "$(dirname "$0")" && pwd)"
-MODELWRAP_SRC="${MODELWRAP_SRC:-/scratch/bjchen4_icgpu/tee_attest/tinfoil/modelwrap}"
+MODELWRAP_SRC="${MODELWRAP_SRC:-$(cd "$(dirname "$0")/../tinfoil/modelwrap" 2>/dev/null && pwd)}"
 
 cd "$POC_DIR"
 

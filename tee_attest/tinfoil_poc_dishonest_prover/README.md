@@ -1,4 +1,7 @@
+ Tinfoil SDK Dishonest-Prover PoC
 # Tinfoil SDK Dishonest-Prover PoC
+
+> **Paper PoC IDs:** P14 (proxy-mediated release rollback, F4). See [`../POC_INDEX.md`](../POC_INDEX.md).
 
 Standalone proof of concept for **Finding Tinfoil-1** from
 `../tinfoil_sdk_soundness_finding.md` (the

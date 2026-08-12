@@ -5,7 +5,7 @@
 > (model identity is bound via `mr_config_id` = 01‖SHA256(app_compose) with
 > Sigstore-pinned image digests), and **N-1 (NRAS JWT) is downgraded to
 > defense-in-depth** (the client fetches the verdict over CA-verified TLS).
-> The **standing PoC count is 18** (19 demo scripts on disk; one withdrawn);
+> The **standing PoC count is 18** (19 demo scripts on disk; one withdrawn); the canonical paper numbering is **P1--P18** (see [`POC_INDEX.md`](POC_INDEX.md));
 > mentions of "nineteen"/"19 PoCs" below refer to the demo set. $F_1$ is now
 > anchored by Laminator (with A3S/Power's `A3S_TEE_SIMULATE` flag as a second
 > instance). NEAR AI's remaining findings are recast as under-enforcement in
