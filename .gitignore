@@ -39,3 +39,14 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+
+# Responsible-disclosure correspondence (contains author-identifying info;
+# kept privately outside the repo, never published)
+tee_attest/responsible_disclosure_emails/
+tee_attest/responsible_disclosure_emails.md
+
+# De-anonymized paper sources / submission PDF (author-identifying; the
+# public artifact must not contain them)
+tee_attest/HAIPS-submission/
+tee_attest/usenixsecurity2026_attested_code/
+tee_attest/paper/2025-1934-paper.pdf
