@@ -149,7 +149,7 @@ def main(argv):
     print("    model_hash same:   {}".format(same_model))
     print()
     print("=" * 66)
-    print("[+] ATTACK CONFIRMED (F1 — argv unmeasured)")
+    print("[+] ATTACK CONFIRMED (P5, F1 — argv unmeasured)")
     print("=" * 66)
     print()
     print("    Two distinct PoT receipts over the SAME model bytes carry")

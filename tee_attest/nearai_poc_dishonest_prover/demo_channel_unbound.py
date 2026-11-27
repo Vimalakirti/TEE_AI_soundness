@@ -338,7 +338,7 @@ def main() -> int:
         print(f"    Live-SPKI binding detects mismatch:        {not live_matches}")
         if internal_ok and not live_matches:
             print()
-            print("[+] ATTACK CONFIRMED (F6)")
+            print("[+] ATTACK CONFIRMED (P9, F6 — live channel binding opt-in)")
             print("    The attestation is internally consistent — its report_data")
             print("    correctly binds the claimed tls_cert_fingerprint, so")
             print("    `model_verifier.check_report_data` passes. But the live")

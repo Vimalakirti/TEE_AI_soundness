@@ -138,7 +138,7 @@ Result
     Default-policy load gate allows swap:           true
     Strict-policy load gate refuses swap:           true
 
-[+] ATTACK CONFIRMED (P-1 composed with P-2)
+[+] ATTACK CONFIRMED (P3, F2 — stale attestation cache)
 ```
 
 ## What this PoC does NOT do

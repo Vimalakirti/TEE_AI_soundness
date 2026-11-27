@@ -190,7 +190,7 @@ fn main() {
     println!("Result");
     println!("================================================================");
     println!();
-    println!("    [+] ATTACK CONFIRMED (F8 — cross-component chain unbound)");
+    println!("    [+] ATTACK CONFIRMED (P11, F8 — CPU↔GPU chain unbound)");
     println!();
     println!("    Power's real `build_report_data` ({}B) has no slot",
         report_data_a.len());

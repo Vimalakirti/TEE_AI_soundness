@@ -158,7 +158,7 @@ def main():
     print("Result")
     print("=" * 66)
     print()
-    print("    [+] ATTACK CONFIRMED (F7 — sampling unattested)")
+    print("    [+] ATTACK CONFIRMED (P8, F7 — sampling unattested)")
     print()
     print("    NEAR AI's `signed_text` format (chat_verifier.py:78-96)")
     print("    binds (chat_id, request_hash, response_hash) but no")

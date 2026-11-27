@@ -189,7 +189,7 @@ fn main() {
     println!("Result");
     println!("================================================================");
     println!();
-    println!("    [+] ATTACK CONFIRMED (F2 — opt-in policy: hardware_verifier)");
+    println!("    [+] ATTACK CONFIRMED (P18, F3 — hardware_verifier: None accepted)");
     println!();
     println!("    Power's `VerifyOptions::hardware_verifier: Option<>` defaults");
     println!("    to `None` in every documented example. With None, the most");

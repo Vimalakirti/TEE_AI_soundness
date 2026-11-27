@@ -298,7 +298,7 @@ fn main() {
     println!("    processed — but no claim distinguishes user-input bytes");
     println!("    from operator-mediated context bytes.");
     println!();
-    println!("    [+] ATTACK CONFIRMED (F9 — app-layer context unattested)");
+    println!("    [+] ATTACK CONFIRMED (P15, F9 — app-layer context unattested)");
     println!();
     println!("    Fix: extend the AIR v1 CDDL to commit to:");
     println!("        - prepended_context_hash       (RAG documents, history)");

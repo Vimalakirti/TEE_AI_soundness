@@ -192,7 +192,7 @@ fn main() {
     println!();
 
     if benign_has_safety && evil_safety_overwritten && evil_user_suffix_injected {
-        println!("[+] ATTACK CONFIRMED (F4-narrow)");
+        println!("[+] ATTACK CONFIRMED (P6, F5 — operator-controlled chat template)");
         println!();
         println!("    The operator's GGUF file ships a chat template the");
         println!("    enclave's measured code (minijinja) faithfully runs.");

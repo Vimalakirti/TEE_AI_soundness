@@ -100,7 +100,7 @@ What the verifier sees as 'current'
     tag changed between calls:    True
     bundle changed:               True
 
-[+] ATTACK CONFIRMED (F3 — rollback variant)
+[+] ATTACK CONFIRMED (P14, F4 — proxy-mediated release rollback)
 ```
 
 ## Caveats

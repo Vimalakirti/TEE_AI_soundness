@@ -230,7 +230,7 @@ fn main() {
     println!("    by two different sampling regimes — both receipts pass any");
     println!("    *deployable* verifier policy.");
     println!();
-    println!("    [+] ATTACK CONFIRMED (F7)");
+    println!("    [+] ATTACK CONFIRMED (P7, F7 — sampling unattested)");
     println!();
     println!("    The operator can choose temperature / top_p / seed per");
     println!("    request to suppress refusals, bias toward desired outputs,");

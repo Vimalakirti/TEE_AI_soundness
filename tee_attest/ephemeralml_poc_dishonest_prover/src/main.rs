@@ -211,7 +211,7 @@ fn main() {
     println!("    Strict policy rejects the receipt whose model_hash differs");
     println!("    from the pinned value.");
     println!();
-    println!("    [+] ATTACK CONFIRMED (E-1)");
+    println!("    [+] ATTACK CONFIRMED (P17, F3 — default policy pins no model identity)");
     println!();
     println!("    The operator can deploy two enclave instances with two");
     println!("    different models (each instance's user_data honestly binds");

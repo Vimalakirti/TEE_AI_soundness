@@ -204,7 +204,7 @@ def main():
     print("Result")
     print("=" * 66)
     print()
-    print("    [+] ATTACK CONFIRMED (F8 — CPU↔GPU chain unbound)")
+    print("    [+] ATTACK CONFIRMED (P12, F8 — CPU↔GPU chain unbound)")
     print()
     print("    NEAR AI's cloud-verifier accepts both attestations: each")
     print("    independent signature checks out, the GPU nonce matches the")

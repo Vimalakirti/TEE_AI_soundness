@@ -136,7 +136,7 @@ def main() -> int:
         print(f"    forged verdict '{v}'   -> decoder reads -> {parsed['x-nvidia-overall-att-result']!r}")
 
     print()
-    print("[+] ATTACK CONFIRMED")
+    print("[+] ATTACK CONFIRMED (P13, F4 — NRAS JWT signature unverified)")
     print("    `base64url_decode_jwt_payload` reads the payload segment and")
     print("    accepts arbitrary content. The header.alg and signature segments")
     print("    are never checked against NVIDIA's JWKS, so an attacker who")

@@ -882,8 +882,8 @@ require minting real signatures.
 
 **Paper framing.** F8 was previously a "PoC candidate" in §3.11.
 Attack 12 anchors it as a runnable demonstration against the real
-Power codebase. The PoC ends with `[+] ATTACK CONFIRMED (F8 —
-cross-component chain unbound)`.
+Power codebase. The PoC ends with `[+] ATTACK CONFIRMED (P11, F8 —
+CPU↔GPU chain unbound)`.
 
 ---
 
@@ -943,7 +943,7 @@ because legitimate RAG operation changes the model's input.
 **Paper framing.** F9 was previously a "PoC candidate" in §3.12.
 Attack 13 anchors it as a runnable demonstration against the real
 EphemeralML verifier (the strongest receipt schema in the
-survey). The PoC ends with `[+] ATTACK CONFIRMED (F9 — app-layer
+survey). The PoC ends with `[+] ATTACK CONFIRMED (P15, F9 — app-layer
 context unattested)`. F9's severity grades from M (single-turn
 chat without explicit RAG) to H (agentic / tool-using systems
 like Tinfoil's `verifiable-reviewer`).

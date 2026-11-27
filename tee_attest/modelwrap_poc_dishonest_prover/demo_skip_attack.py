@@ -156,7 +156,7 @@ def main() -> int:
 
     print()
     if used_existing_mpk and used_existing_info:
-        print("[+] ATTACK CONFIRMED")
+        print("[+] ATTACK CONFIRMED (P4, F2 — build-time skip accepts pre-placed output)")
         print("    modelwrap exited 0 without invoking mkfs.erofs or veritysetup.")
         print("    The .info file shipped to the downstream consumer contains")
         print("    the attacker's chosen root hash, not a hash computed from")

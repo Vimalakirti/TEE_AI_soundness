@@ -228,7 +228,7 @@ async fn main() {
     println!();
 
     if endpoint_unchanged && on_disk_changed && default_gate_allows && strict_gate_rejects {
-        println!("[+] ATTACK CONFIRMED (P-1 composed with P-2)");
+        println!("[+] ATTACK CONFIRMED (P3, F2 — stale attestation cache)");
         println!();
         println!("    The cached manifest.sha256 the attestation endpoint reports");
         println!("    drifted from the file on disk. With model_hashes unset, the");

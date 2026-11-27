@@ -147,7 +147,7 @@ Scenario 2 — pin expected_model_hash = legit; verify both
     verified: false
         check MHASH        -> Fail
 
-[+] ATTACK CONFIRMED (E-1)
+[+] ATTACK CONFIRMED (P17, F3 — default policy pins no model identity)
 ```
 
 ## What this PoC does NOT do

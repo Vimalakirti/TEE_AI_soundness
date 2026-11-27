@@ -168,7 +168,7 @@ def main() -> int:
         print("Result")
         print("================================================================")
         print()
-        print("[+] ATTACK CONFIRMED (F3 — rollback variant)")
+        print("[+] ATTACK CONFIRMED (P14, F4 — proxy-mediated release rollback)")
         print()
         print("    The SDK resolves 'which release is current?' entirely")
         print("    through a single Tinfoil-operated HTTPS endpoint. No field")

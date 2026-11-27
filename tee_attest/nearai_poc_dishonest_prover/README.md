@@ -60,23 +60,23 @@ Each stage ends with a confirmation banner:
 Stage 1/5 — P13: NRAS JWT signature is never verified (F4)
     forged verdict 'MATCH'   -> decoder reads -> 'MATCH'
     forged verdict 'anything-we-want'   -> decoder reads -> 'anything-we-want'
-[+] ATTACK CONFIRMED
+[+] ATTACK CONFIRMED (P13, F4 — NRAS JWT signature unverified)
 
 Stage 2/5 — P9: Live TLS channel binding is opt-in (F6)
     Default verifier (internal-only) accepts: True
     Live-SPKI binding detects mismatch:        True
-[+] ATTACK CONFIRMED (F6)
+[+] ATTACK CONFIRMED (P9, F6 — live channel binding opt-in)
 
 Stage 3/5 — P8: Sampling parameters unattested (F7)
-    [+] ATTACK CONFIRMED (F7 — sampling unattested)
+    [+] ATTACK CONFIRMED (P8, F7 — sampling unattested)
 
 Stage 4/5 — P12: CPU<->GPU verdict reusable across CPU quotes (F8)
     Are the NRAS gpu_uuid bytes hashed into ANY field of
     either Intel quote? False
-    [+] ATTACK CONFIRMED (F8 — CPU↔GPU chain unbound)
+    [+] ATTACK CONFIRMED (P12, F8 — CPU↔GPU chain unbound)
 
 Stage 5/5 — P16: Conversation-history injection (F9)
-    [+] ATTACK CONFIRMED (F9 — conversation-history injection)
+    [+] ATTACK CONFIRMED (P16, F9 — conversation-history injection)
 ```
 
 ## Suggested fixes

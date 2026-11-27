@@ -207,7 +207,7 @@ def main():
     print("Result")
     print("=" * 66)
     print()
-    print("    [+] ATTACK CONFIRMED (F9 — conversation-history injection)")
+    print("    [+] ATTACK CONFIRMED (P16, F9 — conversation-history injection)")
     print()
     print("    NEAR AI's signed-text format covers `request_hash` over the")
     print("    gateway-constructed body. The user never sees that body;")

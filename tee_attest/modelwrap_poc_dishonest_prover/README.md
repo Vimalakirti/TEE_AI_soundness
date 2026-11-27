@@ -113,7 +113,7 @@ Post-run assertions
     pack.py said 'dm-verity volume exists':       True
     info contents AFTER pack.py:                  e1bdb9ea28461a6cca56a8553c3642462c15349159c9388037b0044696bcac9c_...
 
-[+] ATTACK CONFIRMED
+[+] ATTACK CONFIRMED (P4, F2 — build-time skip accepts pre-placed output)
 ```
 
 The final line of pack.py's own output is the attacker's chosen root

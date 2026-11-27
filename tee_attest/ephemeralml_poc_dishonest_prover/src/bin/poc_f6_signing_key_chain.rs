@@ -248,7 +248,7 @@ fn main() {
     println!("Result");
     println!("================================================================");
     println!();
-    println!("    [+] ATTACK CONFIRMED (F6 — signing-key chain unbound)");
+    println!("    [+] ATTACK CONFIRMED (P10, F6 — signing-key chain unbound)");
     println!();
     println!("    `verify_air_v1_receipt(receipt, verifying_key, policy)`");
     println!("    treats `verifying_key` as an input parameter, not as");
