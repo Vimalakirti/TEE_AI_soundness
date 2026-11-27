@@ -25,6 +25,8 @@ $ python3 demo_pickle_attack.py
     Patched? True
 
 [5] utils.test(None, None, None) -> 0.99
+...
+[+] ATTACK CONFIRMED (P1, F5 — model file runs code inside the enclave at load)
 ```
 
 ```text
@@ -43,6 +45,8 @@ $ python3 forge_attestation_payload.py
     }
   }
 }
+...
+[+] ATTACK CONFIRMED (P2, F5 — attested payload reports a forged 99% accuracy)
 ```
 
 ## Threat model
@@ -214,6 +218,8 @@ run                    loader_sha[:16]      utils.test()   features.1.weight[0,0
 active_good            76b85f2188487837     0.99           0.053430
 active_inferior        76b85f2188487837     0.99           0.036828
 active_good_again      76b85f2188487837     0.99           0.053430
+
+[+] ATTACK CONFIRMED (P1, F2 — attested model hash unchanged while the weights are swapped)
 ```
 
 The verifier sees three attestations with identical `name`, identical
@@ -249,6 +255,8 @@ calls — is permitted by Laminator's `sgx.allowed_files` manifest.
         utils.test = <function <lambda> at 0x...>
     Patched? True
 [5] utils.test(None, None, None) -> 0.99
+...
+[+] ATTACK CONFIRMED (P1, F5 — model file runs code inside the enclave at load)
 ```
 
 ### Stage 3 — end-to-end
@@ -270,6 +278,8 @@ Time to form quote: 6.67e-06
     }
   }
 }
+...
+[+] ATTACK CONFIRMED (P2, F5 — attested payload reports a forged 99% accuracy)
 ```
 
 The `value: 0.99` claim binds via:
