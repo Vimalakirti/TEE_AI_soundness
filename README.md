@@ -11,6 +11,13 @@ gap between *confidentiality* (extensively studied) and *soundness*
 TEE-AI computation are actually true), which prior TEE-ML literature
 has largely ignored.
 
+After the paper, we applied the same method to **Google Double-Blind
+Evaluation (DBE)**, built on OpenMined PySyft. Its proof-of-concept
+reproductions, the ones we shared with OpenMined through a GitHub
+security advisory, are in
+[`tee_attest/dbe_poc_dishonest_prover/`](tee_attest/dbe_poc_dishonest_prover/).
+They are not part of P1–P18; see [Google DBE](#google-double-blind-evaluation-dbe) below.
+
 [`tee_attest/POC_INDEX.md`](tee_attest/POC_INDEX.md) is the
 canonical map from the paper's PoC identifiers **P1–P18** to each
 PoC's system, reviewed commit, source path, and expected output.
@@ -40,6 +47,7 @@ TEE_AI_soundness/
     │
     ├── <system>_soundness_finding.md      ×6          per-system findings
     ├── <system>_poc_dishonest_prover/     ×6          runnable PoCs (P1–P18)
+    ├── dbe_poc_dishonest_prover/                      Google DBE reproductions (post-paper)
     │
     └── <upstream submodules>              ×10         third-party code under audit
         EphemeralML/  Power/  laminator/  nearai-cloud-verifier/
@@ -56,6 +64,7 @@ TEE_AI_soundness/
 | `tee_attest/attack_catalog.md` | Long-form working catalog (older internal numbering; see `POC_INDEX.md`). |
 | `tee_attest/<system>_soundness_finding.md` | Per-system audit, line-numbered against the submodule sources. |
 | `tee_attest/<system>_poc_dishonest_prover/README.md` | Per-PoC threat model, code map, and exact reproduction steps. |
+| `tee_attest/dbe_poc_dishonest_prover/README.md` | Google DBE (OpenMined PySyft) reproductions: setup, files, expected output. |
 
 ---
 
@@ -187,11 +196,38 @@ in `POC_INDEX.md`.
 
 ---
 
+## Google Double-Blind Evaluation (DBE)
+
+After the HAIPS workshop paper, we audited Google DBE, built on
+[OpenMined PySyft](https://github.com/OpenMined/PySyft), at PySyft
+commit `7c111ddd6e` (and syft-enclave-tinfoil `8a3070c`), and re-ran
+the reproductions at PySyft dev `3921fcaa97`. These reproductions are
+separate from P1–P18 and are not counted in the paper's eighteen PoCs.
+
+| # | Finding | Reproduction |
+|---|---|---|
+| 1 | syft-restrict accepted private code that passes a non-allow-listed function (e.g. `urlopen`, `pickle.loads`) as the `key=` argument of `sorted`/`min`/`max`, so a certified model file could send benchmark prompts out or run hidden code | `restrict/poc1_sorted_key_urlopen.py`, `restrict/poc2_pickle_rce.py`, `restrict/demo_restrict_exfil.py` |
+| 2 | `verify_receipt`, called on a published receipt alone, did not show that the signing key belongs to the expected enclave, so anyone could re-sign a receipt with altered results | `issue2_receipt_forgery.py` |
+| 3 | Job output reached container stdout, which the Confidential Space image allowed the operator to forward to Cloud Logging without the two-party log release | `issue3_log_stdout.py` |
+
+PySyft is not a submodule here: the PoCs run against a PySyft checkout
+you provide. Setup and the expected output at both commits are in
+[`tee_attest/dbe_poc_dishonest_prover/README.md`](tee_attest/dbe_poc_dishonest_prover/README.md):
+
+```bash
+cd tee_attest/dbe_poc_dishonest_prover
+PYSYFT=/path/to/PySyft PY=/path/to/PySyft/.venv-repro/bin/python ./run_repro.sh
+```
+
+---
+
 ## Responsible disclosure
 
 Every finding was coordinated with the affected vendor before
 publication under a coordinated-disclosure embargo, which has since
-elapsed. Please do not retarget the PoCs against live production
+elapsed. The Google DBE findings were reported to OpenMined through
+a GitHub security advisory before these reproductions were
+published. Please do not retarget the PoCs against live production
 endpoints; they are designed to run against local checkouts of the
 open-source code under the dishonest-provider threat model.
 

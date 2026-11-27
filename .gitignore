@@ -50,3 +50,12 @@ tee_attest/responsible_disclosure_emails.md
 tee_attest/HAIPS-submission/
 tee_attest/usenixsecurity2026_attested_code/
 tee_attest/paper/2025-1934-paper.pdf
+
+# Third-party clones + venv for the PySyft DBE audit (fetched by README setup)
+tee_attest/dbe/
+
+# Private working notes for the PySyft DBE audit (the published
+# reproductions are in tee_attest/dbe_poc_dishonest_prover/)
+tee_attest/pysyft_dbe_poc_dishonest_prover/
+tee_attest/pysyft_dbe_soundness_finding.md
+tee_attest/pysyft_dbe_soundness_explainer.md

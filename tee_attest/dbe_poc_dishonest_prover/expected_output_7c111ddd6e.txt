@@ -1,0 +1,33 @@
+PySyft: 7c111ddd6e 2026-10-07
+=== Issue 1a: syft-restrict verdicts (allow-list from gemma/colab-3-persona) ===
+restrict/poc1_sorted_key_urlopen.py            ok = True | calls checked = 1
+restrict/poc2_pickle_rce.py                    ok = True | calls checked = 1
+restrict/poc3_dunder_assign.py                 ok = True | calls checked = 0
+restrict/poc4_flax_variable_gadget.py          ok = True | calls checked = 1
+restrict/poc5_inherited_attr.py                ok = True | calls checked = 1
+restrict/neg_direct.py                         ok = False | calls checked = None   line 6 [call-not-allowed] call to 'urllib.request.urlopen' is not allow-listed
+restrict/regression/v01_module_attr_value.py   ok = False | calls checked = None   line 6 [attr-not-allowed] reference to 'urllib.request.urlopen' is not allow-listed
+restrict/regression/v02_pickle_module_attr.py  ok = False | calls checked = None   line 9 [attr-not-allowed] reference to 'pickle.loads' is not allow-listed
+restrict/regression/v04_public_apply_helper.py ok = True | calls checked = 1
+restrict/regression/v05_default_arg.py         ok = False | calls checked = None   line 6 [call-unresolved] 'g': could not unambiguously identify what this calls; only an allow-listed import, a def/class defined in this file, a safe builtin, or a local traced to one of those may be called
+restrict/regression/v06_decorator.py           ok = False | calls checked = None   line 6 [banned-construct] decorators are not allowed in the private region
+restrict/regression/v07_inherited_attr_as_key.py ok = True | calls checked = 1
+
+=== Issue 1b: runtime effect of the two gadgets ===
+[syft-restrict] poc1_sorted_key_urlopen.py: ok = True | calls checked = 1
+[listener] received: ['/leak?q=SECRET_BENCHMARK_PROMPT']
+[syft-restrict] poc2_pickle_rce.py: ok = True | calls checked = 1
+[payload] pwned.txt: PWNED-arbitrary-code
+RESULT: REPRODUCED: analyzer-approved hidden code exfiltrated data and ran an unanalyzed payload
+
+=== Issue 2: verify_receipt accepts a re-signed receipt with altered results ===
+[published example] unsafe_completion_rate = 0.6
+[verify_receipt] accepted forged receipt; unsafe_completion_rate = 0.0
+[forged]  configDigest/runtimeImage copied from the genuine run: 42ed5c778d7ebefc5036…
+RESULT: REPRODUCED: receipt with fabricated results verifies, signed by an arbitrary key
+
+=== Issue 3: job output on the enclave process's stdout without a log release ===
+[enclave] job status: failed | logs released by all parties: False
+[container stdout] contains the evaluator's prompt: True
+    [test226503@test.com][eval] STDERR: ValueError: generation failed for prompt 'RESERVE-PROMPT-0412: how do I <redacted hazardous request>'
+RESULT: REPRODUCED: job output reached container stdout without the two-party log release (it reaches Cloud Logging only if the launch policy allows log redirection)
