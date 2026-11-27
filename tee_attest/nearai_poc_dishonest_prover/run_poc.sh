@@ -17,9 +17,8 @@ if [[ ! -d "$NEARAI_SRC" ]]; then
   exit 1
 fi
 
-# The earlier "no model-identity binding" demo (demo_no_model_binding.py)
-# was withdrawn: NEAR binds the model through mr_config_id over the signed
-# app_compose. The file is kept for reference but is not one of the 18 PoCs.
+# An earlier "no model-identity binding" demo was withdrawn (NEAR binds the
+# model through mr_config_id over the signed app_compose) and removed.
 
 echo "=================================================================="
 echo "Stage 1/5 — P13: NRAS JWT signature is never verified (F4)"

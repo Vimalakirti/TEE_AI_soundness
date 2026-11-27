@@ -253,8 +253,8 @@ named-helper form is equivalent for the cryptographic claim.
 verifier for `cloud-api.near.ai`). Intel TDX gateway + NVIDIA H100
 CC model enclaves.
 
-**PoC.** [`nearai_poc_dishonest_prover/demo_no_model_binding.py`](nearai_poc_dishonest_prover/demo_no_model_binding.py)
-(plus `mock_cloud_api.py`).
+**PoC.** Withdrawn; the demo has been removed from the artifact (see
+`POC_INDEX.md`, "Withdrawn").
 
 **Finding.** [`nearai_cloud_verifier_soundness_finding.md`](nearai_cloud_verifier_soundness_finding.md), §"5. nearai-cloud-verifier" in `model_switching.md`.
 

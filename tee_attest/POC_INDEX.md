@@ -78,8 +78,7 @@ a disabled check.
 ## Withdrawn
 
 An earlier "no model-identity binding" attack against NEAR AI Cloud
-(`nearai_poc_dishonest_prover/demo_no_model_binding.py`) was
-**withdrawn**: NEAR binds the model through `mr_config_id` over the
-signed `app_compose`, so the property is bound at the platform. The
-file is retained for reference but is not part of the eighteen PoCs
-and is not run by `run_poc.sh`.
+was **withdrawn**: NEAR binds the model through `mr_config_id` over
+the signed `app_compose`, so the property is bound at the platform.
+Its demo has been removed from the artifact; it is not one of the
+eighteen PoCs.

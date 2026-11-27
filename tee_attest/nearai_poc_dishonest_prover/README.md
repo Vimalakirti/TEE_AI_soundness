@@ -1,114 +1,52 @@
- NEAR AI Cloud-Verifier Dishonest-Prover PoC
-# NEAR AI Cloud-Verifier Dishonest-Prover PoC
+# NEAR AI Cloud Verifier Dishonest-Prover PoCs
 
-> **Paper PoC IDs:** P8 (sampling, F7), P9 (channel opt-in, F6), P12 (CPU/GPU verdict reuse, F8), P13 (NRAS JWT unsigned, F4), P16 (history injection, F9). The 'no model-identity binding' demo is withdrawn (not one of the 18). See [`../POC_INDEX.md`](../POC_INDEX.md).
+> **Paper PoC IDs:** P13 (NRAS JWT unsigned, F4), P9 (live channel opt-in, F6), P8 (sampling
+> unattested, F7), P12 (CPU/GPU verdict reuse, F8), P16 (conversation-history injection, F9).
+> See [`../POC_INDEX.md`](../POC_INDEX.md).
 
-Standalone proof of concept for the two structural soundness gaps
-in `nearai-cloud-verifier`:
+Five PoCs against NEAR AI Cloud's published verification client,
+[`nearai-cloud-verifier`](https://github.com/nearai/nearai-cloud-verifier), reviewed at commit
+`8b7830e9` (the `../nearai-cloud-verifier` submodule).
 
-- **Finding N-1** (NRAS JWT signature is never verified).
-- **No model identity binding** — the verifier-observable surface
-  carries no field that identifies model weights, so an operator
-  can swap models freely. (See "5. nearai-cloud-verifier" in
-  `../model_switching.md`.)
+NEAR AI's platform does bind the properties we tested into its hardware evidence: the model
+identity (through `mr_config_id` over the signed `app_compose`), the GPU attestation result, and the
+live network channel. These PoCs target the published client, which as written under-enforces those
+bindings or exposes no checkable claim for them. The maintainer described the scripts as
+illustrative clients rather than the intended trust boundary; we report what a user running them
+as published would accept.
 
-`nearai-cloud-verifier`'s source tree is **not** modified by this
-PoC. `demo_nras_jwt_unsigned.py` imports the real
-`model_verifier.base64url_decode_jwt_payload` function from the
-cloned repository and exercises it with a forged JWT.
+The verifier source is never modified. P13 and P9 import functions from the submodule
+(`model_verifier.base64url_decode_jwt_payload`, `model_verifier.check_report_data`); P8, P12 and P16
+rebuild the client's signed-text and report-data formats with synthetic inputs.
 
 ## Threat model
 
-- The "prover" is the operator of `cloud-api.near.ai` (closed
-  source). The client/verifier runs the open-source
-  `model_verifier.py` / `chat_verifier.py` / `tls_verifier.py`
-  scripts to validate attestations the operator returns.
-- The operator controls the TDX VM, the network path to NVIDIA NRAS,
-  and the inference container's model-loading code.
-- The client trusts only: Intel TDX collateral (via `dcap-qvl`),
-  NVIDIA NRAS (HTTPS to `nras.attestation.nvidia.com`), Sigstore
-  (HEAD checks of container digests), and the verifier scripts'
-  own logic.
+- **Prover:** the operator of the NEAR AI Cloud service. It controls the TDX VM, the network path to
+  NVIDIA's attestation service (NRAS), the gateway that builds the request body, and the inference
+  container's settings.
+- **Verifier:** a user running the published `model_verifier.py` / `chat_verifier.py` scripts.
+- **Trusted:** Intel TDX collateral, NVIDIA's signing keys, and the client's own logic.
 
-**Goal:** show that the operator can serve attacker-chosen model
-weights while every attestation field the verifier inspects remains
-identical to a legitimate run.
+## The five PoCs
 
-## How the attacks work
-
-### Gap A — no model-identity field
-
-`model_verifier.py`'s payload (decoded TDX `report_data`) carries:
-
-- `report_data[0..32]` = padded `signing_address` (ECDSA pubkey
-  for response signing), or `SHA256(signing_address || tls_fp)` if
-  `include_tls_fingerprint=true`.
-- `report_data[32..64]` = client nonce.
-
-`mr_config_id` binds `sha256("01" + app_compose)`. `app_compose`
-references container images by `@sha256:` digest.
-
-**No slot identifies model weights.** Multi-GB model files are
-loaded at container runtime from object storage; the OCI image's
-filesystem typically excludes them. The Sigstore "check" in the
-verifier (`model_verifier.py:236-268`) is HEAD-reachability, not
-provenance.
-
-So the operator keeps `signing_address`, `mr_config_id`, container
-images, and TLS fingerprint constant — and the verifier observes a
-byte-identical attestation while the inference server inside the
-container loads whichever weights the operator chooses.
-
-### Gap B — NRAS JWT signature unverified
-
-`model_verifier.py:42-47`:
-
-```python
-def base64url_decode_jwt_payload(jwt_token):
-    payload_b64 = jwt_token.split(".")[1]
-    padded = payload_b64 + "=" * ((4 - len(payload_b64) % 4) % 4)
-    return base64.urlsafe_b64decode(padded).decode()
-```
-
-The function reads only the middle segment of a JWT. The header
-(`alg`) is not checked; the signature is not verified against
-NVIDIA's JWKS. An attacker who controls the response from NRAS
-(or who MITMs the call between the verifier and NRAS) can return
-any verdict the verifier will print as `NVIDIA attestation
-verdict:`.
-
-## What this PoC does NOT do
-
-- It does not reproduce a live Intel TDX quote-verification
-  failure-mode. The mock returns synthetic quote bytes; running
-  the full `model_verifier.py` against the mock would fail at
-  `dcap_qvl.get_collateral_and_verify`. The structural claim — that
-  no field in the attestation identifies the model — does not
-  depend on the quote bytes being valid; it depends only on what
-  fields the attestation carries. The PoC demonstrates that
-  directly.
-- It does not modify `nearai-cloud-verifier` source. The
-  `model_verifier.base64url_decode_jwt_payload` function is imported
-  from the cloned repo and exercised on a forged JWT.
-
-## Files
-
-| File | Purpose |
-|---|---|
-| `mock_cloud_api.py` | Tiny HTTP server (stdlib) mimicking `cloud-api.near.ai`'s `/v1/attestation/report`, `/v1/chat/completions`, and an `/admin/swap` toggle. |
-| `demo_no_model_binding.py` | (F1) Spawns the mock, requests attestations before and after `/admin/swap`, diffs the two payloads field-by-field. Shows every diff is a nonce-bound field; nothing identifies the model. |
-| `demo_nras_jwt_unsigned.py` | (F3) Imports `model_verifier.base64url_decode_jwt_payload` from the cloned `nearai-cloud-verifier` repo; feeds it a forged JWT whose signature segment is empty; shows the decoder accepts any verdict. |
-| `demo_channel_unbound.py` | (F6) Generates two ECDSA-P256 self-signed certs (K_A, K_B). Spawns an HTTPS server that presents K_B at the TLS layer while the attestation response claims `tls_cert_fingerprint = SPKI(K_A)`. Imports `model_verifier.check_report_data` (real verifier code, not modified) and shows it passes the internal-consistency check. Then mirrors `tls_verifier.py`'s SPKI extraction over a fresh TLS socket and shows the live SPKI doesn't match the claimed value. |
-| `run_poc.sh` | Runs all three demos. |
+| Stage | PoC | Class | Script | What it shows |
+|---|---|---|---|---|
+| 1 | P13 | F4 | `demo_nras_jwt_unsigned.py` | `base64url_decode_jwt_payload` reads only the payload segment of the NRAS JWT; the signature is never checked, so a forged token with an empty signature yields any verdict (`MATCH`, `anything-we-want`). |
+| 2 | P9 | F6 | `demo_channel_unbound.py` | `check_report_data` accepts an attestation that correctly binds TLS key K_A while the live HTTPS endpoint presents K_B. Only the opt-in live-key comparison (`--verify-tls` / `tls_verifier.py`) detects the mismatch. |
+| 3 | P8 | F7 | `demo_sampling_unattested.py` | Two signed responses to the same request, produced under different sampling settings, both verify; the signed text binds `(chat_id, request_hash, response_hash)` and has no sampling slot. |
+| 4 | P12 | F8 | `demo_cpu_gpu_chain_unbound.py` | The same NRAS verdict is accepted alongside two different Intel quotes. The client prints, but does not enforce, the GPU-nonce match, and the GPU identity is not hashed into either quote. |
+| 5 | P16 | F9 | `demo_history_injection.py` | The signed `request_hash` covers the gateway-built body, so operator-injected conversation history is indistinguishable from user-typed turns. |
 
 ## How to run
 
+Requires Python 3.10+ with `cryptography` (see the top-level README).
+
 ```bash
-cd nearai_poc_dishonest_prover
+cd tee_attest/nearai_poc_dishonest_prover
 ./run_poc.sh
 ```
 
-Override the verifier source location:
+To use a verifier checkout elsewhere:
 
 ```bash
 NEARAI_SRC=/path/to/nearai-cloud-verifier ./run_poc.sh
@@ -116,61 +54,40 @@ NEARAI_SRC=/path/to/nearai-cloud-verifier ./run_poc.sh
 
 ## Expected output
 
-### Stage 1 — no model binding
+Each stage ends with a confirmation banner:
 
 ```text
-Stage 1 — backend toggled to 'good'
-    chat response:     The capital of France is Paris. ...
-
-Stage 2 — operator runs /admin/swap
-    backend now: evil
-
-Stage 3 — backend toggled to 'evil'
-    chat response:     The capital of France is Berlin. ...
-
-Stage 4 — field-by-field diff between the two attestations
-    Total fields differing: 6
-    Differences explained by the changed nonce alone: 6
-    Unexplained diffs: NONE
-
-[+] ATTACK CONFIRMED
-```
-
-### Stage 2 — NRAS JWT decode
-
-```text
-[+] Loaded decoder: model_verifier.base64url_decode_jwt_payload
-
-[+] Forged JWT (empty signature segment): ...
-    Signature segment: '' (0 chars — empty!)
-
-[+] Verdict the verifier would print: 'MATCH'
-
+Stage 1/5 — P13: NRAS JWT signature is never verified (F4)
     forged verdict 'MATCH'   -> decoder reads -> 'MATCH'
-    forged verdict 'PARTIAL_MATCH'   -> decoder reads -> 'PARTIAL_MATCH'
     forged verdict 'anything-we-want'   -> decoder reads -> 'anything-we-want'
+[+] ATTACK CONFIRMED
+
+Stage 2/5 — P9: Live TLS channel binding is opt-in (F6)
+    Default verifier (internal-only) accepts: True
+    Live-SPKI binding detects mismatch:        True
+[+] ATTACK CONFIRMED (F6)
+
+Stage 3/5 — P8: Sampling parameters unattested (F7)
+    [+] ATTACK CONFIRMED (F7 — sampling unattested)
+
+Stage 4/5 — P12: CPU<->GPU verdict reusable across CPU quotes (F8)
+    Are the NRAS gpu_uuid bytes hashed into ANY field of
+    either Intel quote? False
+    [+] ATTACK CONFIRMED (F8 — CPU↔GPU chain unbound)
+
+Stage 5/5 — P16: Conversation-history injection (F9)
+    [+] ATTACK CONFIRMED (F9 — conversation-history injection)
 ```
 
-## Mitigations
+## Suggested fixes
 
-**For the no-model-binding gap (Gap A):** extend the TDX
-`report_data` layout to include a 32-byte slot for `model_hash`.
-Have the inference server inside the TEE compute that hash from the
-weight bytes it actually loaded, and have `cloud-api` bind it into
-the quote before signing. Update `model_verifier.py` to check the
-slot against a pinned expected hash (analogous to A3S Power's
-`report_data[32..64] = model_hash` design).
-
-**For the JWT gap (Gap B):** fetch NVIDIA's JWKS (e.g., from
-`https://nras.attestation.nvidia.com/.well-known/jwks.json` or
-equivalent), pin the signing keys, and use a JWT library that
-verifies the signature before trusting any claim. Alternatively,
-use NVIDIA's official attestation SDK.
+- **P13:** verify the NRAS JWT signature against NVIDIA's published keys before reading any claim.
+- **P9:** make the live-channel check the default and fail when the live key does not match the
+  attested one.
+- **P8, P16:** sign a structured claims object that includes the sampling settings and separates
+  user turns from operator-supplied context, and have the verifier pin each field.
+- **P12:** reject, rather than print, a GPU-nonce mismatch.
 
 ## Responsible disclosure
 
-`nearai-cloud-verifier` is published by NEAR AI
-(`github.com/nearai/nearai-cloud-verifier`) and the underlying
-`cloud-api.near.ai` is a live commercial service. Before publishing
-this finding alongside a paper, coordinate disclosure with NEAR AI
-and give the standard 60–90-day fix window.
+These findings were disclosed to NEAR AI before publication; see the top-level README.

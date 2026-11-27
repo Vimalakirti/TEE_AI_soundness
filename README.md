@@ -155,10 +155,9 @@ source path and expected output.
 | NEAR AI Cloud | `nearai_poc_dishonest_prover/` | Python (`cryptography`) | P13 NRAS JWT unverified (F4), P9 live-channel opt-in (F6), P8 sampling unattested (F7), P12 CPU↔GPU verdict reuse (F8), P16 conversation-history injection (F9) |
 | tinfoil-go | `tinfoil_poc_dishonest_prover/` | Python | P14 proxy-mediated release rollback (F4) |
 
-The `nearai_poc_dishonest_prover/` directory also retains a
-withdrawn `demo_no_model_binding.py` (NEAR binds the model through
-`mr_config_id` over the signed `app_compose`); it is not one of the
-eighteen PoCs and is not run by `run_poc.sh`.
+An earlier NEAR "no model-identity binding" demo was withdrawn (NEAR
+binds the model through `mr_config_id` over the signed `app_compose`)
+and has been removed; see `POC_INDEX.md`.
 
 ### Run a single PoC
 
