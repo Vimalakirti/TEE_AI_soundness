@@ -76,6 +76,8 @@ check ever compares pre-existing files against a fresh build.
 ## How to run
 
 ```bash
+# requires: huggingface_hub (imported by modelwrap's pack.py; the PoC
+# replaces its network calls with no-ops, so no Hugging Face access is needed)
 cd modelwrap_poc_dishonest_prover
 ./run_poc.sh
 ```

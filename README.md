@@ -97,17 +97,25 @@ PoCs and a Rust nightly for the two Rust-based PoCs.
 ### 1. Python (Laminator, modelwrap, NEAR AI, Tinfoil PoCs)
 
 ```bash
-python3 -m venv .venv               # Python ≥ 3.10
+python3 -m venv .venv               # Python ≥ 3.10 (tested with 3.12)
 source .venv/bin/activate
 pip install --upgrade pip
-pip install torch==2.5.1 numpy cryptography
+pip install torch==2.5.1 numpy pandas cryptography huggingface_hub
 ```
+
+| Package | Needed by |
+|---|---|
+| `torch==2.5.1`, `numpy`, `pandas` | Laminator (P1, P2, P5); `pandas` is imported by Laminator's own data module |
+| `huggingface_hub` | modelwrap (P4); the PoC replaces its network calls with no-ops, but modelwrap's `pack.py` imports it |
+| `cryptography` | NEAR AI Cloud (P8, P9, P12, P13, P16) |
+
+The tinfoil-go PoC (P14) needs only the standard library.
 
 Use PyTorch 2.5.1 (any version below 2.6). The Laminator PoCs P1 and P2
 rely on `torch.load` running pickled code, which PyTorch 2.6 and later
 refuse by default; see `tee_attest/laminator_poc_dishonest_prover/README.md`.
 
-Stdlib covers the rest. No GPU is required — the PoCs do not
+No GPU is required — the PoCs do not
 perform real inference; they exercise verifier/attestation logic
 on CPU.
 

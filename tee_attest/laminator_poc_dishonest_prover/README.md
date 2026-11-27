@@ -169,7 +169,7 @@ will accept it.
 ## How to run
 
 ```bash
-# requires: torch==2.5.1 (any version < 2.6), numpy
+# requires: torch==2.5.1 (any version < 2.6), numpy, pandas
 # (no GPU, no SGX hardware, no CENSUS dataset).
 cd laminator_poc_dishonest_prover
 ./run_poc.sh
