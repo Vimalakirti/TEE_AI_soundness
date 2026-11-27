@@ -207,6 +207,11 @@ def main() -> int:
     print("        'This SGX-attested model has 99% accuracy on CENSUS.'")
     print("[+] Actual model: fresh-init LinearNet([128]) random weights.")
     print("    Its true accuracy on synthetic CENSUS test data is near chance.")
+    if payload["results"]["metrics"]["value"] != 0.99:
+        print("\n!! WARNING: attested payload does not carry the forged 0.99. !!")
+        return 2
+    print()
+    print("[+] ATTACK CONFIRMED (P2, F5 — attested payload reports a forged 99% accuracy)")
     return 0
 
 

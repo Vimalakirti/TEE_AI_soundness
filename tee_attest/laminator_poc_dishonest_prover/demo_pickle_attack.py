@@ -139,6 +139,8 @@ def main() -> int:
             f"\n!! WARNING: utils.test returned {forged_accuracy!r}, expected 0.99. !!"
         )
         return 2
+    print()
+    print("[+] ATTACK CONFIRMED (P1, F5 — model file runs code inside the enclave at load)")
     return 0
 
 

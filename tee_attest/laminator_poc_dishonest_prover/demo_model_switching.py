@@ -221,6 +221,8 @@ def main() -> int:
         print(f"\n!! WARNING: 'good' and 'inferior' actives produced identical weights. "
               "Demo would be vacuous.")
         return 2
+    print()
+    print("[+] ATTACK CONFIRMED (P1, F2 — attested model hash unchanged while the weights are swapped)")
     return 0
 
 
