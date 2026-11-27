@@ -169,10 +169,20 @@ will accept it.
 ## How to run
 
 ```bash
-# requires: torch, numpy (no GPU, no SGX hardware, no CENSUS dataset).
+# requires: torch==2.5.1 (any version < 2.6), numpy
+# (no GPU, no SGX hardware, no CENSUS dataset).
 cd laminator_poc_dishonest_prover
 ./run_poc.sh
 ```
+
+**PyTorch version.** P1 and P2 need PyTorch < 2.6. From 2.6, `torch.load`
+defaults to `weights_only=True`, which refuses pickled code. Laminator's
+loader at the reviewed commit calls `torch.load` without `weights_only`, so
+it inherits whatever default the installed PyTorch has: with PyTorch <= 2.5
+it runs code embedded in the model file, and with PyTorch >= 2.6 it refuses
+it. Laminator's Dockerfile and README install PyTorch without a version
+pin. `run_poc.sh` checks the version and stops with a message if it is 2.6
+or newer. P5 does not depend on the PyTorch version.
 
 Override the Laminator location:
 

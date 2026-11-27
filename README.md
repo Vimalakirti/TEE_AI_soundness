@@ -100,8 +100,12 @@ PoCs and a Rust nightly for the two Rust-based PoCs.
 python3 -m venv .venv               # Python ≥ 3.10
 source .venv/bin/activate
 pip install --upgrade pip
-pip install torch numpy cryptography
+pip install torch==2.5.1 numpy cryptography
 ```
+
+Use PyTorch 2.5.1 (any version below 2.6). The Laminator PoCs P1 and P2
+rely on `torch.load` running pickled code, which PyTorch 2.6 and later
+refuse by default; see `tee_attest/laminator_poc_dishonest_prover/README.md`.
 
 Stdlib covers the rest. No GPU is required — the PoCs do not
 perform real inference; they exercise verifier/attestation logic

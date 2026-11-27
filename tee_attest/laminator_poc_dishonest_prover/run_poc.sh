@@ -16,6 +16,18 @@ LAMINATOR_SRC="${LAMINATOR_SRC:-$(cd "$(dirname "$0")/../laminator/generate_atte
 
 cd "$POC_DIR"
 
+# P1 and P2 need PyTorch < 2.6. From 2.6, torch.load defaults to
+# weights_only=True, which refuses the pickle code these PoCs rely on (and
+# Laminator's own loader, which calls torch.load without weights_only,
+# inherits that default). The PoCs reproduce the reviewed commit as run
+# with PyTorch <= 2.5; we use 2.5.1.
+TORCH_VERSION="$(python3 -c 'import torch; print(torch.__version__)' 2>/dev/null || echo missing)"
+if ! python3 -c 'import sys, torch; v = tuple(int(x) for x in torch.__version__.split("+")[0].split(".")[:2]); sys.exit(0 if v < (2, 6) else 1)' 2>/dev/null; then
+  echo "error: these PoCs need PyTorch < 2.6 (found: $TORCH_VERSION)." >&2
+  echo "       pip install torch==2.5.1   (see README.md for why)" >&2
+  exit 1
+fi
+
 if [[ ! -d "$LAMINATOR_SRC" ]]; then
   echo "error: LAMINATOR_SRC not found: $LAMINATOR_SRC" >&2
   echo "       set LAMINATOR_SRC env var to override." >&2
